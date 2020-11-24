@@ -25,34 +25,50 @@ namespace OpenTrueskillBot.Skill
 
         public BotAction() {
             ActionTime = DateTime.UtcNow;
-            DoAction();
+        }
+
+        private void mergeAllOld() {
+            Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
         }
 
         public void Undo() {
-
-            Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
+            mergeAllOld();
             // undoAction() just does extra things that may not be covered by the default one
             undoAction();
 
             // recalculate future values
             if (NextAction != null) {
-                NextAction.DoAction();
+                NextAction.ReCalculateNext();
+            }
+
+            // Unlink this node
+            var tempPrev = PrevAction;
+            var tempNext = NextAction;
+            if (PrevAction != null) {
+                tempPrev.NextAction = tempNext;
+            }
+            if (NextAction != null) {
+                tempNext.PrevAction = tempPrev;
             }
         }
 
         public void InsertAfter(BotAction action) {
+            mergeAllOld();
+
             action.NextAction = this.NextAction;
             this.NextAction = action;
+
+            action.ReCalculateNext();
         }
 
         #region Recursive functions
 
-        public void RecalculateNext() {
+        public void ReCalculateNext() {
 
             DoAction();
 
             if (this.NextAction != null) {
-                this.NextAction.RecalculateNext();
+                this.NextAction.ReCalculateNext();
             }
         }
 
