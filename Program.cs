@@ -8,6 +8,7 @@ namespace OpenTrueskillBot
     {
 
         public static SkillConfig CurSkillConfig;
+        public static Leaderboard CurLeaderboard;
 
         static void Main(string[] args)
         {
