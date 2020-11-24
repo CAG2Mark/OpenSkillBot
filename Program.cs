@@ -12,7 +12,7 @@ namespace OpenTrueskillBot
 
         static void Main(string[] args)
         {
-            var input = new ConsoleBotInput();
+            var test = new MatchAction(new Team());
             
             Console.WriteLine("Bot started.");
 

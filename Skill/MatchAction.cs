@@ -1,3 +1,5 @@
+using Moserware.Skills.TrueSkill;
+
 namespace OpenTrueskillBot.Skill
 {
 
@@ -19,7 +21,7 @@ namespace OpenTrueskillBot.Skill
 
         // Currently only supports matches between two teams
         public MatchAction(Team team1) : base() {
-            
+
         }
     }
 }
