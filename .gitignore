@@ -29,3 +29,6 @@ msbuild.err
 msbuild.wrn
 
 # Visual Studio 2015
+test.txt
+token.txt
+*empCodeRunnerFile.cs

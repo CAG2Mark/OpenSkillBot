@@ -1,6 +1,8 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using Discord;
+using Discord.WebSocket;
 using OpenTrueskillBot.BotInputs;
 using OpenTrueskillBot.Skill;
 
@@ -13,47 +15,40 @@ namespace OpenTrueskillBot
     class Program
     {
 
+        public const char prefix = '!';
+
         public static SkillConfig CurSkillConfig = new SkillConfig();
         public static Leaderboard CurLeaderboard;
+
+        public static DiscordInput DiscordIO;
+
+        public static string DiscordToken;
 
         static void Main(string[] args)
         		=> new Program().MainAsync().GetAwaiter().GetResult();
 
         public async Task MainAsync() {
-            var test = new MatchAction(new Team());
-            
-            Console.WriteLine("Bot started.");
 
-            // Test
-
-            var player1 = new Player(1804, 30);
-            var player2 = new Player(1814, 31);
-
-            TrueskillWrapper.CalculateMatch(new Player[] {player1}, new Player[] {player2});
-            Console.WriteLine(player1.Mu);
-            Console.WriteLine(player1.Sigma);
-
-            string line;
-            // basic IO
-            while (!(line = Console.ReadLine()).Equals("exit")) {
-                
+            // Load the Discord token.
+            if (File.Exists("token.txt")) 
+            {
+                DiscordToken = File.ReadAllText("token.txt").Trim();
+            }
+            else {
+                Console.WriteLine("Please enter your Discord Bot Token. If you don't have one, please create one at https://discord.com/developers/applications.");
+                DiscordToken = Console.ReadLine().Trim();
+                File.WriteAllText("token.txt", DiscordToken);
             }
 
-            
+            Console.WriteLine("Bot Started");
 
+            DiscordIO = new DiscordInput(DiscordToken);
+
+            // Block this task until the program is closed.
+            await Task.Delay(-1);
+        
             Console.WriteLine("Exiting.");
         }
-
-        #region Discord.NET documentation boilerplate
-
-        private Task Log(LogMessage msg)
-        {
-            Console.WriteLine(msg.ToString());
-            return Task.CompletedTask;
-        }
-
-        #endregion
-
         public static void OutputPriv(string output) {
             Console.WriteLine(output);
         }
