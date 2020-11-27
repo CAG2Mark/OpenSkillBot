@@ -45,6 +45,10 @@ namespace OpenTrueskillBot.Skill
             if (NextAction != null) {
                 NextAction.ReCalculateNext();
             }
+            else
+            {
+                Program.CurLeaderboard.InvokeChange();
+            }
 
             // Unlink this node
             var tempPrev = PrevAction;
@@ -71,6 +75,8 @@ namespace OpenTrueskillBot.Skill
             this.NextAction = action;
 
             action.ReCalculateNext();
+
+            Program.Controller.SerializeActions();
         }
 
         #region Recursive functions

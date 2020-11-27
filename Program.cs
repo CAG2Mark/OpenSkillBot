@@ -19,7 +19,7 @@ namespace OpenTrueskillBot
 
         public const char prefix = '!';
 
-        public static BotConfig Config = new BotConfig();
+        public static BotConfig Config = null;
 
         // for compatibility with older code
         public static Leaderboard CurLeaderboard => Controller.CurLeaderboard;
@@ -29,15 +29,15 @@ namespace OpenTrueskillBot
         // Todo: remove
         public static string DiscordToken;
 
-        public static BotController Controller = new BotController();
-
+        public static BotController Controller;
 
         static void Main(string[] args)
         		=> new Program().MainAsync().GetAwaiter().GetResult();
 
         public async Task MainAsync() {
 
-            Config = SerializeHelper.Deserialize<BotConfig>("config.json");
+            if (File.Exists("config.json"))
+                Config = SerializeHelper.Deserialize<BotConfig>("config.json");
             // Load the Discord token.
             if (Config != null) 
             {
@@ -52,6 +52,8 @@ namespace OpenTrueskillBot
 
                 File.WriteAllText("token.txt", DiscordToken);
             }
+
+            Controller = new BotController();
 
             Console.WriteLine("Bot Started");
 

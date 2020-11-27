@@ -14,6 +14,7 @@ namespace OpenTrueskillBot.BotCommands
         [Summary("Calculates a full match between two teams.")]
         public Task FullMatchCommand(string team1, string team2, int result = 1) {
 
+            try {
                 var t1 = strToTeam(team1);
                 var t2 = strToTeam(team2);
 
@@ -30,21 +31,17 @@ namespace OpenTrueskillBot.BotCommands
                 {
                     output += $"{player.IGN}: {player.DisplayedSkill.ToString("#.#")} RD {player.Sigma.ToString("#.#")}{Environment.NewLine}";
                 }
-                
+
                 return ReplyAsync(output);
-
-            try {
-
             }
             catch (Exception e) {
                 return ReplyAsync(e.Message);
             }
-
         }
 
         public Team strToTeam(string teamStr) {
             var split = teamStr.Split(',');
-            var players = new Player[teamStr.Length];
+            var players = new Player[split.Length];
 
             for (int i = 0; i < split.Length; ++i) {
                 var player = Program.CurLeaderboard.FuzzySearch(split[i]);

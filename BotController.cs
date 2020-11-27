@@ -66,7 +66,7 @@ namespace OpenTrueskillBot
             }
         }
 
-        public void AddMatchAction(Team team1, Team team2, int result) {
+        public MatchAction AddMatchAction(Team team1, Team team2, int result) {
             // swap if result is 2
             if (result == 2) {
                 var temp = team1;
@@ -81,8 +81,11 @@ namespace OpenTrueskillBot
             }
             else {
                 action.DoAction();
+                SerializeActions();
             }
             LatestAction = action;
+
+            return action;
 
         }
     }
