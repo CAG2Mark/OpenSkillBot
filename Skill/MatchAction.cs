@@ -30,11 +30,11 @@ namespace OpenTrueskillBot.Skill
 
     public static class TrueskillWrapper {
         public static GameInfo info = new GameInfo(
-            Program.CurSkillConfig.DefaultMu,
-            Program.CurSkillConfig.DefaultSigma,
-            Program.CurSkillConfig.Beta,
-            Program.CurSkillConfig.Tau,
-            Program.CurSkillConfig.DrawProbability
+            Program.Config.DefaultMu,
+            Program.Config.DefaultSigma,
+            Program.Config.Beta,
+            Program.Config.Tau,
+            Program.Config.DrawProbability
             );
 
         private static TwoTeamTrueSkillCalculator calculator = new TwoTeamTrueSkillCalculator();

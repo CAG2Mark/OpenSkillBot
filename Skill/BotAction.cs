@@ -53,7 +53,12 @@ namespace OpenTrueskillBot.Skill
         }
 
         public void InsertAfter(BotAction action) {
-            mergeAllOld();
+            if (this.NextAction != null) {
+                this.NextAction.mergeAllOld();
+            }
+            else {
+                
+            }
 
             action.NextAction = this.NextAction;
             this.NextAction = action;

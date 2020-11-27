@@ -54,7 +54,7 @@ namespace OpenTrueskillBot.Skill
         /// <summary>
         /// The displayed skill of the player.
         /// </summary>
-        public double DisplayedSkill => this.Mu - Program.CurSkillConfig.TrueSkillDeviations * Sigma;
+        public double DisplayedSkill => this.Mu - Program.Config.TrueSkillDeviations * Sigma;
 
         // Use when creating a new player
         public Player()
@@ -74,7 +74,7 @@ namespace OpenTrueskillBot.Skill
 
         // Source: https://stackoverflow.com/questions/1344221/how-can-i-generate-random-alphanumeric-strings
         private static Random random = new Random();
-        private double sigma = Program.CurSkillConfig.DefaultSigma;
+        private double sigma = Program.Config.DefaultSigma;
 
         public static string RandomString(int length)
         {

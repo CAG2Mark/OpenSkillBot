@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Discord;
@@ -17,26 +19,34 @@ namespace OpenTrueskillBot
 
         public const char prefix = '!';
 
-        public static SkillConfig CurSkillConfig = new SkillConfig();
+        public static BotConfig Config = new BotConfig();
         public static Leaderboard CurLeaderboard;
 
         public static DiscordInput DiscordIO;
 
         public static string DiscordToken;
 
+        public static BotController Controller = new BotController();
+
+
         static void Main(string[] args)
         		=> new Program().MainAsync().GetAwaiter().GetResult();
 
         public async Task MainAsync() {
 
+            Config = SerializeHelper.Deserialize<BotConfig>("config.json");
             // Load the Discord token.
-            if (File.Exists("token.txt")) 
+            if (Config != null) 
             {
-                DiscordToken = File.ReadAllText("token.txt").Trim();
+                DiscordToken = Config.BotToken;
             }
             else {
                 Console.WriteLine("Please enter your Discord Bot Token. If you don't have one, please create one at https://discord.com/developers/applications.");
                 DiscordToken = Console.ReadLine().Trim();
+
+                Config = new BotConfig() {BotToken = DiscordToken };
+                SerializeHelper.Serialize(Config, "config.json");
+
                 File.WriteAllText("token.txt", DiscordToken);
             }
 
@@ -46,8 +56,6 @@ namespace OpenTrueskillBot
 
             // Block this task until the program is closed.
             await Task.Delay(-1);
-        
-            Console.WriteLine("Exiting.");
         }
         public static void OutputPriv(string output) {
             Console.WriteLine(output);
