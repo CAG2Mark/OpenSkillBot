@@ -11,8 +11,6 @@ namespace OpenTrueskillBot
         }
 
         public static T Deserialize<T>(string fileName) {
-            if (!File.Exists(fileName)) return default(T);
-
             string json = File.ReadAllText(fileName);
             return JsonConvert.DeserializeObject<T>(json);
         }

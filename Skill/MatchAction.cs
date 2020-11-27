@@ -7,23 +7,33 @@ namespace OpenTrueskillBot.Skill
 {
 
     public struct Team {
-        public Player[] players;
+        public IEnumerable<Player> Players;
     }
 
     public class MatchAction : BotAction
     {
-        public override void DoAction()
+        public Team Winner { get; set; }
+        public Team Loser { get; set; }
+        public bool IsDraw { get; set; }
+        
+        protected override void action()
         {
-            throw new System.NotImplementedException();
+            TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
         }
 
         protected override void undoAction()
         {
-            throw new System.NotImplementedException();
         }
 
         // Currently only supports matches between two teams
-        public MatchAction(Team team1) : base() {
+        public MatchAction(Team winner, Team loser, bool isDraw = false) : base() {
+            this.Winner = winner;
+            this.Loser = loser;
+            this.IsDraw = isDraw;
+        }
+
+        // empty ctor for serialisation purposes
+        public MatchAction() {
 
         }
     }

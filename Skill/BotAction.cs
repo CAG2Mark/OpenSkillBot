@@ -21,7 +21,12 @@ namespace OpenTrueskillBot.Skill
 
         protected abstract void undoAction();
 
-        public abstract void DoAction();
+        protected abstract void action();
+
+        public void DoAction() {
+            action();
+            Program.CurLeaderboard.InvokeChange();
+        }
 
         public BotAction() {
             ActionTime = DateTime.UtcNow;
@@ -50,6 +55,8 @@ namespace OpenTrueskillBot.Skill
             if (NextAction != null) {
                 tempNext.PrevAction = tempPrev;
             }
+
+            Program.Controller.SerializeActions();
         }
 
         public void InsertAfter(BotAction action) {

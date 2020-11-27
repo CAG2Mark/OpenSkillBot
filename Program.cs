@@ -20,10 +20,13 @@ namespace OpenTrueskillBot
         public const char prefix = '!';
 
         public static BotConfig Config = new BotConfig();
-        public static Leaderboard CurLeaderboard;
+
+        // for compatibility with older code
+        public static Leaderboard CurLeaderboard => Controller.CurLeaderboard;
 
         public static DiscordInput DiscordIO;
 
+        // Todo: remove
         public static string DiscordToken;
 
         public static BotController Controller = new BotController();

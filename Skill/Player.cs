@@ -63,8 +63,9 @@ namespace OpenTrueskillBot.Skill
         }
 
         // Use when creating a new player with a non-standard starting trueskill
-        public Player(double mu, double sigma = -1)
+        public Player(string ign, double mu, double sigma = -1)
         {
+            this.IGN = ign;
             this.UUId = RandomString(16);
             this.Mu = mu;
 
