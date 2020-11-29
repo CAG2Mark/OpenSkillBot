@@ -33,3 +33,4 @@ test.txt
 token.txt
 *empCodeRunnerFile.cs
 *.json
+*.v2

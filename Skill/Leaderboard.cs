@@ -1,9 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace OpenTrueskillBot.Skill
 {
+    public struct Rank {
+        public Rank(int lowerBound, ulong roleId, string name) {
+            this.LowerBound = lowerBound;
+            this.RoleId = roleId;
+            this.Name = name;
+        }
+
+        public int LowerBound { get; }
+        public ulong RoleId { get; }
+        public string Name { get; }
+    }
+
     public class Leaderboard
     {
 
@@ -59,6 +72,17 @@ namespace OpenTrueskillBot.Skill
                 
                 return query.Equals(name) || query.Equals(alias);
             });
+        }
+
+        public string GenerateLeaderboardText() {
+            var nl = Environment.NewLine;
+            var sb = new StringBuilder();
+
+            foreach(var player in Players) {
+                sb.Append($"{player.IGN}: {Math.Round(player.DisplayedSkill).ToString("#")} RD {Math.Round(player.Sigma).ToString("#")}{nl}");
+            }
+
+            return sb.ToString();
         }
         
     }

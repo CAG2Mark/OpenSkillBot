@@ -1,6 +1,6 @@
 using System;
 using System.Linq;
-
+using System.Text.Json.Serialization;
 using Moserware.Skills;
 
 namespace OpenTrueskillBot.Skill
@@ -51,6 +51,7 @@ namespace OpenTrueskillBot.Skill
         /// </summary>
         public double Mu { get; set; }
 
+        [JsonIgnore]
         /// <summary>
         /// The displayed skill of the player.
         /// </summary>
@@ -79,7 +80,7 @@ namespace OpenTrueskillBot.Skill
 
         public static string RandomString(int length)
         {
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            const string chars = "abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             return new string(Enumerable.Repeat(chars, length)
             .Select(s => s[random.Next(s.Length)]).ToArray());
         }

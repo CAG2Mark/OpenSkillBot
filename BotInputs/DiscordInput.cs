@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using System;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Linq;
+using Discord.Rest;
 
 // Most of the code here is copied from the Discord.NET documentation.
 
@@ -81,8 +83,33 @@ namespace OpenTrueskillBot.BotInputs
 
         }
 
-        public async Task SendMessage(string message, ISocketMessageChannel channel) {
-            await channel.SendMessageAsync(message);
-        }       
+        public async Task<IMessage> SendMessage(string message, ISocketMessageChannel channel) {
+            // sends the message and returns it
+            return await channel.SendMessageAsync(message);
+        }
+        
+        public ISocketMessageChannel GetChannel(ulong id) {
+            // the bot is designed to only be in one server
+            return client.Guilds.First().GetTextChannel(id);
+        }
+
+        public async Task<IMessage> GetMessage(ulong messageId, ulong channelId) {
+            var channel = GetChannel(channelId);
+            return await channel.GetMessageAsync(messageId);
+        }
+
+        public async Task EditMessage(ulong messageId, ulong channelId, string newText) {
+            try {
+                var msg = (RestUserMessage)await GetMessage(messageId, channelId);
+                await msg.ModifyAsync(m => {
+                    m.Content = newText;
+                });
+            }
+            // error if the bot is not the author of the message
+            catch (InvalidCastException) {
+                throw new Exception($"Cannot edit message {messageId} in channel {channelId}. The bot is not the author of the message.");
+            }
+            
+        }
     }
 }

@@ -39,19 +39,19 @@ namespace OpenTrueskillBot
             if (File.Exists("config.json"))
                 Config = SerializeHelper.Deserialize<BotConfig>("config.json");
             // Load the Discord token.
-            if (Config != null) 
-            {
+            if (Config != null) {
                 DiscordToken = Config.BotToken;
             }
             else {
                 Console.WriteLine("Please enter your Discord Bot Token. If you don't have one, please create one at https://discord.com/developers/applications.");
                 DiscordToken = Console.ReadLine().Trim();
 
-                Config = new BotConfig() {BotToken = DiscordToken };
-                SerializeHelper.Serialize(Config, "config.json");
-
-                File.WriteAllText("token.txt", DiscordToken);
+                Config = new BotConfig() { BotToken = DiscordToken };
+                SerializeConfig();
             }
+
+
+            Config.PropertyChanged += (o, e) => SerializeConfig();
 
             Controller = new BotController();
 
@@ -62,6 +62,11 @@ namespace OpenTrueskillBot
             // Block this task until the program is closed.
             await Task.Delay(-1);
         }
+
+        public static void SerializeConfig() {
+            SerializeHelper.Serialize(Config, "config.json");
+        }
+
         public static void OutputPriv(string output) {
             Console.WriteLine(output);
         }

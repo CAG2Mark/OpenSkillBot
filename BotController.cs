@@ -2,6 +2,7 @@ using OpenTrueskillBot.Skill;
 using System;
 using Newtonsoft.Json;
 using System.IO;
+using Discord;
 
 namespace OpenTrueskillBot
 {
@@ -35,7 +36,13 @@ namespace OpenTrueskillBot
         }
 
         public void UpdateLeaderboard() {
-            Console.WriteLine("Leaderboard changed");
+            // only send if the leaderboard channel is set
+
+            if (Program.Config.LeaderboardChannelId != 0) {
+                var lbStr = CurLeaderboard.GenerateLeaderboardText();
+                
+            }
+
             SerializeLeaderboard();
         }
 
