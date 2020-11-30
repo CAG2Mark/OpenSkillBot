@@ -3,6 +3,8 @@ using System;
 using Newtonsoft.Json;
 using System.IO;
 using Discord;
+using System.Linq;
+using System.Timers;
 
 namespace OpenTrueskillBot
 {
@@ -13,6 +15,10 @@ namespace OpenTrueskillBot
         private const string ahFileName = "actionhistory.json";
 
         public Leaderboard CurLeaderboard;
+
+        private Timer lbTimer = new Timer(3000);
+
+        private bool lbChangeQueued = false; 
 
         public BotAction LatestAction;
         public BotController() {
@@ -33,16 +39,29 @@ namespace OpenTrueskillBot
             CurLeaderboard.LeaderboardChanged += (o,e) => {
                 UpdateLeaderboard();
             };
+
+            // have the leaderboard update be set on a timer so that it doesn't fire multiple times a second unnecessarily
+            lbTimer.Elapsed += (o, e) => {
+                if (lbChangeQueued) UpdateLeaderboard();
+            };
+            lbTimer.Start();
         }
 
-        public void UpdateLeaderboard() {
+        public async void UpdateLeaderboard() {
+            lbChangeQueued = false;
+            
             // only send if the leaderboard channel is set
-
             if (Program.Config.LeaderboardChannelId != 0) {
-                var lbStr = CurLeaderboard.GenerateLeaderboardText();
-                
+                var lbStr = CurLeaderboard.GenerateLeaderboardText(2500);
+                // split the message size so it's less than discord's message limit
+
+                var lbStrArr = lbStr.ToArray();
+
+                await Program.DiscordIO.PopulateChannel(Program.Config.LeaderboardChannelId, lbStrArr);
+
             }
 
+            
             SerializeLeaderboard();
         }
 

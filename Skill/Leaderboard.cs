@@ -74,15 +74,24 @@ namespace OpenTrueskillBot.Skill
             });
         }
 
-        public string GenerateLeaderboardText() {
+        // returns the leaderboard string, but splits it so that each string is less than a specified limit
+        public IEnumerable<string> GenerateLeaderboardText(int charLimit) {
             var nl = Environment.NewLine;
             var sb = new StringBuilder();
 
             foreach(var player in Players) {
-                sb.Append($"{player.IGN}: {Math.Round(player.DisplayedSkill).ToString("#")} RD {Math.Round(player.Sigma).ToString("#")}{nl}");
+                var nextStr = $"{player.IGN}: {Math.Round(player.DisplayedSkill).ToString("#")} RD {Math.Round(player.Sigma).ToString("#")}{nl}";
+
+                if (sb.Length + nextStr.Length > charLimit) {
+                    yield return sb.ToString();
+                    sb = new StringBuilder();
+                }
+
+                sb.Append(nextStr);
             }
 
-            return sb.ToString();
+            yield return sb.ToString();
+
         }
         
     }

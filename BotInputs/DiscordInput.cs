@@ -101,15 +101,46 @@ namespace OpenTrueskillBot.BotInputs
         public async Task EditMessage(ulong messageId, ulong channelId, string newText) {
             try {
                 var msg = (RestUserMessage)await GetMessage(messageId, channelId);
-                await msg.ModifyAsync(m => {
-                    m.Content = newText;
-                });
+                await EditMessage(msg, newText);
             }
             // error if the bot is not the author of the message
             catch (InvalidCastException) {
                 throw new Exception($"Cannot edit message {messageId} in channel {channelId}. The bot is not the author of the message.");
+            }          
+        }
+
+        public async Task EditMessage(RestUserMessage msg, string newText) {
+            await msg.ModifyAsync(m => {
+                m.Content = newText;
+            });
+        }
+
+        public async Task PopulateChannel(ulong channelId, string[] text) {
+            try {
+                var messages = GetChannel(channelId).GetMessagesAsync(text.Length);
+                int count = await messages.CountAsync();
+
+                messages.OrderBy(m => ((RestUserMessage)m).Timestamp);
+
+                int i;
+                for (i = 0; i < count; ++i) {
+                    var msgRest = (RestUserMessage) await messages.ElementAtAsync(i);
+                    await EditMessage(msgRest, text[i]);
+                }
+
+                // if a new message has to be sent
+                if (count < text.Length) {
+                    for (; i < text.Length; ++i) {
+                        await SendMessage(text[i], GetChannel(channelId));
+                    }
+                }
+
+                // todo: delete redundant messages automatically
+                
             }
-            
+            catch (InvalidCastException) {
+                throw new Exception($"Cannot edit message. The bot is not the author of the message.");
+            }    
         }
     }
 }
