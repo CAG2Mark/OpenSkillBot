@@ -14,5 +14,6 @@ namespace OpenTrueskillBot
             string json = File.ReadAllText(fileName);
             return JsonConvert.DeserializeObject<T>(json);
         }
+
     }
 }

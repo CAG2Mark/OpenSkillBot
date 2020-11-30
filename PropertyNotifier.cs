@@ -3,15 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace OpenTrueskillBot {
-    /// <summary>
-    /// Custom wrapper around the INotifyPropertyChanged interface allowing for easier support for MVVM data binding.
-    /// 
-    /// Inherited from 
-    /// </summary>
-    public abstract class BindableBase : INotifyPropertyChanged {
-
+    public abstract class PropertyNotifier : INotifyPropertyChanged {
 
         /// <summary>
         /// Sets the value of a property such that it can be binded to the view.
@@ -28,6 +23,7 @@ namespace OpenTrueskillBot {
         }
 
         #region INotifyPropertyChanged members
+
 
         public event PropertyChangedEventHandler PropertyChanged;
 

@@ -10,9 +10,7 @@ namespace OpenTrueskillBot.BotCommands {
             var builder = new EmbedBuilder() {
                 Color = new Color(28, 189, 71),
             };
-            builder.AddField(x => {
-                x.Name = $":white_check_mark: {text}.";
-            });
+            builder.Description = $":white_check_mark: {text}";
             return builder.Build();
         }
 

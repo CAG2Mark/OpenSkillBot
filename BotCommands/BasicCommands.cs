@@ -34,14 +34,15 @@ namespace OpenTrueskillBot.BotCommands
 
         [Command("linkchannels")]
         [Summary("Links the commands channel, the leaderboard channel, and the match history channel, in that order.")]
-        public Task EchoCommand([Summary("The ID of the commands channel.")] ulong commandsId,
+        public Task LinkChannelsCommand(
+            [Summary("The ID of the commands channel.")] ulong commandsId,
             [Summary("The ID of the leaderboard channel.")] ulong leaderboardId,
             [Summary("The ID of the match history channel.")] ulong historyId) {
-
 
             Program.Config.CommandChannelId = commandsId;
             Program.Config.LeaderboardChannelId = leaderboardId;
             Program.Config.HistoryChannelId = historyId;
+
 
             Program.CurLeaderboard.InvokeChange();
            

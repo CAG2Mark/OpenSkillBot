@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using Discord.Rest;
+using System.Collections.Generic;
 
 // Most of the code here is copied from the Discord.NET documentation.
 
@@ -117,14 +118,14 @@ namespace OpenTrueskillBot.BotInputs
 
         public async Task PopulateChannel(ulong channelId, string[] text) {
             try {
-                var messages = GetChannel(channelId).GetMessagesAsync(text.Length);
-                int count = await messages.CountAsync();
+                var messages = await GetChannel(channelId).GetMessagesAsync(text.Length).FlattenAsync();
+                int count = messages.Count();
 
-                messages.OrderBy(m => ((RestUserMessage)m).Timestamp);
+                List<IMessage> messagesList = messages.OrderBy(m => ((RestUserMessage)m).Timestamp).ToList();
 
                 int i;
                 for (i = 0; i < count; ++i) {
-                    var msgRest = (RestUserMessage) await messages.ElementAtAsync(i);
+                    var msgRest = (RestUserMessage)messagesList[i];
                     await EditMessage(msgRest, text[i]);
                 }
 

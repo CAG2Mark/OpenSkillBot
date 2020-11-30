@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 
 namespace OpenTrueskillBot.Skill
 {
-    public class BotConfig : BindableBase {
+    public class BotConfig : PropertyNotifier {
+        
         private double defaultSigma = 100;
         private double defaultMu = 1475;
         private double tau = 5;
@@ -18,11 +20,11 @@ namespace OpenTrueskillBot.Skill
         private List<ulong> permittedUserIds;
         private List<ulong> permittedRoleIds;
         private string challongeToken;
-        private ObservableCollection<Rank> ranks;
+        private ObservableCollection<Rank> ranks = new ObservableCollection<Rank>();
         public ulong unrankedId;
 
         public BotConfig() {
-            Ranks.CollectionChanged += (o, e) => OnPropertyChanged(nameof(Ranks));
+            // Ranks.CollectionChanged += (o, e) => OnPropertyChanged(nameof(Ranks));
         }
 
         #region Skill-related
@@ -52,7 +54,7 @@ namespace OpenTrueskillBot.Skill
         }
 
         public ulong UnrankedId {
-            get => UnrankedId; set => Set(ref unrankedId, value);
+            get => unrankedId; set => Set(ref unrankedId, value);
         }
 
         #endregion
