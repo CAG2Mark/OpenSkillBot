@@ -20,7 +20,7 @@ namespace OpenTrueskillBot
 
         private bool lbChangeQueued = false; 
 
-        public BotAction LatestAction;
+        public MatchAction LatestAction;
         public BotController() {
             // get leaderboard
             if (File.Exists(lbFileName)) {
@@ -33,7 +33,9 @@ namespace OpenTrueskillBot
 
             // get action history
             if (File.Exists(ahFileName)) {
-                LatestAction = SerializeHelper.Deserialize<BotAction>(ahFileName);
+                LatestAction = SerializeHelper.Deserialize<MatchAction>(ahFileName);
+                if (LatestAction != null)
+                    LatestAction.RepopulateLinks();
             }
 
             CurLeaderboard.LeaderboardChanged += (o,e) => {
@@ -101,15 +103,18 @@ namespace OpenTrueskillBot
             }
 
             MatchAction action = new MatchAction(team1, team2, result == 0);
-            // note: this does recalculate
+
             if (LatestAction != null) {
+                // note: this does recalculate
                 LatestAction.InsertAfter(action);
             }
             else {
                 action.DoAction();
-                SerializeActions();
             }
+
             LatestAction = action;
+
+            SerializeActions();
 
             return action;
 

@@ -32,5 +32,8 @@ msbuild.wrn
 test.txt
 token.txt
 *empCodeRunnerFile.cs
-*.json
 *.v2
+
+# Serialized files
+*.json
+*.dat

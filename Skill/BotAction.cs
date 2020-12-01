@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace OpenTrueskillBot.Skill
 {
@@ -15,34 +16,45 @@ namespace OpenTrueskillBot.Skill
         public List<OldPlayerData> oldPlayerDatas = new List<OldPlayerData>();
 
         public DateTime ActionTime;
+
         
+        // Dont serialise this to avoid infinite recursion. Instead, repopulate on deserialization.
+        [JsonIgnore]
         public BotAction NextAction { get; set; }
         public BotAction PrevAction { get; set; }
+
+        public string ActionId { get; private set; }
 
         protected abstract void undoAction();
 
         protected abstract void action();
 
-        public void DoAction() {
+        public void DoAction()
+        {
             action();
             Program.CurLeaderboard.InvokeChange();
         }
 
-        public BotAction() {
+        public BotAction()
+        {
             ActionTime = DateTime.UtcNow;
+            this.ActionId = Player.RandomString(16);
         }
 
-        private void mergeAllOld() {
+        private void mergeAllOld()
+        {
             Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
         }
 
-        public void Undo() {
+        public void Undo()
+        {
             mergeAllOld();
             // undoAction() just does extra things that may not be covered by the default one
             undoAction();
 
             // recalculate future values
-            if (NextAction != null) {
+            if (NextAction != null)
+            {
                 NextAction.ReCalculateNext();
             }
             else
@@ -53,25 +65,31 @@ namespace OpenTrueskillBot.Skill
             // Unlink this node
             var tempPrev = PrevAction;
             var tempNext = NextAction;
-            if (PrevAction != null) {
+            if (PrevAction != null)
+            {
                 tempPrev.NextAction = tempNext;
             }
-            if (NextAction != null) {
+            if (NextAction != null)
+            {
                 tempNext.PrevAction = tempPrev;
             }
 
             Program.Controller.SerializeActions();
         }
 
-        public void InsertAfter(BotAction action) {
-            if (this.NextAction != null) {
+        public void InsertAfter(BotAction action)
+        {
+            if (this.NextAction != null)
+            {
                 this.NextAction.mergeAllOld();
             }
-            else {
-                
+            else
+            {
+
             }
 
             action.NextAction = this.NextAction;
+            action.PrevAction = this;
             this.NextAction = action;
 
             action.ReCalculateNext();
@@ -81,11 +99,13 @@ namespace OpenTrueskillBot.Skill
 
         #region Recursive functions
 
-        public void ReCalculateNext() {
+        public void ReCalculateNext()
+        {
 
             DoAction();
 
-            if (this.NextAction != null) {
+            if (this.NextAction != null)
+            {
                 this.NextAction.ReCalculateNext();
             }
         }
@@ -94,14 +114,17 @@ namespace OpenTrueskillBot.Skill
         /// Returns all the cumulative old player data for recalculation of TrueSkill.
         /// </summary>
         /// <returns></returns>
-        private List<OldPlayerData> getCumulativeOldData() {
+        private List<OldPlayerData> getCumulativeOldData()
+        {
             List<OldPlayerData> cumulative;
-            
+
             // If this is the head, start the chain
-            if (this.NextAction == null) {
+            if (this.NextAction == null)
+            {
                 cumulative = new List<OldPlayerData>();
             }
-            else {
+            else
+            {
                 cumulative = NextAction.getCumulativeOldData();
             }
 
@@ -118,7 +141,12 @@ namespace OpenTrueskillBot.Skill
         }
 
         #endregion
-
         
+        public void RepopulateLinks() {
+            if (this.PrevAction != null) {
+                PrevAction.NextAction = this;
+                PrevAction.RepopulateLinks();
+            }
+        }
     }
 }
