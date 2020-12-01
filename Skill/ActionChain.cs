@@ -5,15 +5,15 @@ namespace OpenTrueskillBot.Skill
     public class ActionChain
     {
         
-        public BotAction First { get; set; }
+        public MatchAction First { get; set; }
 
-        public BotAction Last { get; set; }
+        public MatchAction Last { get; set; }
 
         public int Count {
             get {
                 Reset();
 
-                BotAction next = First;
+                MatchAction next = First;
                 int i = 0;
                 while (this.HasNext()) {
                     next = this.GetNext();
@@ -24,20 +24,20 @@ namespace OpenTrueskillBot.Skill
             }
         }
 
-        public void Push(BotAction action) {
+        public void Push(MatchAction action) {
             this.Last.NextAction = action;
             this.Last = action;
         }
 
-        public BotAction Pop() {
+        public MatchAction Pop() {
             return this.Last = this.Last.PrevAction;
         }
 
-        public BotAction this[int i] {
+        public MatchAction this[int i] {
             get {
                Reset(); 
                
-               BotAction next = First;
+               MatchAction next = First;
                for (int j = 0; j < i; j++) {  
                    next = GetNext();
                    if (next == null) throw new IndexOutOfRangeException();                 
@@ -59,12 +59,12 @@ namespace OpenTrueskillBot.Skill
             this.curAction = this.First;
         }
 
-        private BotAction curAction;
+        private MatchAction curAction;
         public bool HasNext() {
             return curAction.NextAction != null;
         }
 
-        public BotAction GetNext() {
+        public MatchAction GetNext() {
             return curAction = curAction.NextAction;
         }
 
@@ -72,7 +72,7 @@ namespace OpenTrueskillBot.Skill
             return curAction.PrevAction != null;
         }
 
-        public BotAction GetPrev() {
+        public MatchAction GetPrev() {
             return curAction = curAction.PrevAction;
         }
 

@@ -54,8 +54,9 @@ namespace OpenTrueskillBot
             
             // only send if the leaderboard channel is set
             if (Program.Config.LeaderboardChannelId != 0) {
-                var lbStr = CurLeaderboard.GenerateLeaderboardText(2500);
+
                 // split the message size so it's less than discord's message limit
+                var lbStr = CurLeaderboard.GenerateLeaderboardText(2500);
 
                 var lbStrArr = lbStr.ToArray();
 

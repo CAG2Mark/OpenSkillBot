@@ -2,31 +2,42 @@ using System.Collections.Generic;
 using Moserware.Skills;
 using Moserware.Skills.TrueSkill;
 using System;
+using System.Text.Json.Serialization;
 
 namespace OpenTrueskillBot.Skill
 {
 
     public struct Team {
-        public IEnumerable<Player> Players;
+        public List<Player> Players;
     }
 
-    public class MatchAction : BotAction
+
+    public struct OldPlayerData {
+        public string UUId;
+        public double Sigma;
+        public double Mu;
+    }
+
+    public class MatchAction
     {
         public Team Winner { get; set; }
         public Team Loser { get; set; }
         public bool IsDraw { get; set; }
         
-        protected override void action()
+        protected void action()
         {
             TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
         }
 
-        protected override void undoAction()
+        protected void undoAction()
         {
         }
 
         // Currently only supports matches between two teams
         public MatchAction(Team winner, Team loser, bool isDraw = false) : base() {
+                ActionTime = DateTime.UtcNow;
+            this.ActionId = Player.RandomString(16);
+
             this.Winner = winner;
             this.Loser = loser;
             this.IsDraw = isDraw;
@@ -34,7 +45,163 @@ namespace OpenTrueskillBot.Skill
 
         // empty ctor for serialisation purposes
         public MatchAction() {
+            ActionTime = DateTime.UtcNow;
+            this.ActionId = Player.RandomString(16);
+        }
 
+        #region copied from botaction class
+
+        public List<OldPlayerData> oldPlayerDatas = new List<OldPlayerData>();
+
+        public DateTime ActionTime;
+
+        
+        // Dont serialise this to avoid infinite recursion. Instead, repopulate on deserialization.
+        [JsonIgnore]
+        public MatchAction NextAction { get; set; }
+        public MatchAction PrevAction { get; set; }
+
+        public string ActionId { get; private set; }
+
+        public void DoAction()
+        {
+            action();
+            Program.CurLeaderboard.InvokeChange();
+        }
+
+
+        private void mergeAllOld()
+        {
+            Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
+        }
+
+        public void Undo()
+        {
+            mergeAllOld();
+            // undoAction() just does extra things that may not be covered by the default one
+            undoAction();
+
+            // recalculate future values
+            if (NextAction != null)
+            {
+                NextAction.ReCalculateNext();
+            }
+            else
+            {
+                Program.CurLeaderboard.InvokeChange();
+            }
+
+            // Unlink this node
+            var tempPrev = PrevAction;
+            var tempNext = NextAction;
+            if (PrevAction != null)
+            {
+                tempPrev.NextAction = tempNext;
+            }
+            if (NextAction != null)
+            {
+                tempNext.PrevAction = tempPrev;
+            }
+
+            Program.Controller.SerializeActions();
+        }
+
+        public void InsertAfter(MatchAction action)
+        {
+            if (this.NextAction != null)
+            {
+                this.NextAction.mergeAllOld();
+            }
+            else
+            {
+
+            }
+
+            action.NextAction = this.NextAction;
+            action.PrevAction = this;
+            this.NextAction = action;
+
+            action.ReCalculateNext();
+
+            Program.Controller.SerializeActions();
+        }
+
+        #region Recursive functions
+
+        public void ReCalculateNext()
+        {
+
+            DoAction();
+
+            if (this.NextAction != null)
+            {
+                this.NextAction.ReCalculateNext();
+            }
+        }
+
+        /// <summary>
+        /// Returns all the cumulative old player data for recalculation of TrueSkill.
+        /// </summary>
+        /// <returns></returns>
+        private List<OldPlayerData> getCumulativeOldData()
+        {
+            List<OldPlayerData> cumulative;
+
+            // If this is the head, start the chain
+            if (this.NextAction == null)
+            {
+                cumulative = new List<OldPlayerData>();
+            }
+            else
+            {
+                cumulative = NextAction.getCumulativeOldData();
+            }
+
+            // remove the later old player datas
+            // because we want the one closest to the start
+            foreach (var oldPlayerData in oldPlayerDatas)
+            {
+                cumulative.RemoveAll(o => o.UUId.Equals(oldPlayerData.UUId));
+            }
+
+            cumulative.AddRange(oldPlayerDatas);
+
+            return cumulative;
+        }
+
+        #endregion
+        
+        public void RepopulateLinks() {
+            if (this.PrevAction != null) {
+                PrevAction.NextAction = this;
+                PrevAction.RepopulateLinks();
+            }
+        }
+
+        #endregion
+
+        // override object.Equals
+        public override bool Equals(object obj)
+        {
+            //
+            // See the full list of guidelines at
+            //   http://go.microsoft.com/fwlink/?LinkID=85237
+            // and also the guidance for operator== at
+            //   http://go.microsoft.com/fwlink/?LinkId=85238
+            //
+            
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+            
+            return this.ActionId.Equals(((MatchAction)obj).ActionId);
+        }
+        
+        // override object.GetHashCode
+        public override int GetHashCode()
+        {
+            return 7 * this.Winner.GetHashCode() + 17 * this.Loser.GetHashCode() + 19 * this.ActionId.GetHashCode();
         }
     }
 

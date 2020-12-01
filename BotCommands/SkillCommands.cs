@@ -68,7 +68,7 @@ namespace OpenTrueskillBot.BotCommands
                 }
             }
 
-            return new Team() { Players = players };
+            return new Team() { Players = players.ToList() };
         }
 
 

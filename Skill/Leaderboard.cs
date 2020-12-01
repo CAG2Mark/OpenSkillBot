@@ -59,6 +59,11 @@ namespace OpenTrueskillBot.Skill
             }
         }
 
+        /// <summary>
+        /// Fuzzy searches for a player.
+        /// </summary>
+        /// <param name="query">The player to search for.</param>
+        /// <returns>The player that was found.!-- Will return null if not found.--></returns>
         public Player FuzzySearch(string query) {
             query = query.ToLower();
             return Players.Find(p => {
@@ -66,9 +71,6 @@ namespace OpenTrueskillBot.Skill
                 string alias = null;
                 if (p.Alias != null)
                     p.Alias.Substring(0, query.Length);
-
-                Console.WriteLine(query);
-                Console.WriteLine(name);
                 
                 return query.Equals(name) || query.Equals(alias);
             });
