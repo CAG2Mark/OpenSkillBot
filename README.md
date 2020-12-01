@@ -21,4 +21,4 @@ Not yet implemeneted features (non-exhaustive):
  
 # Disclaimer
 
-This project is not affiliated with Microsoft's Trueskill project in any way, apart from the use of its model.
+This project is not affiliated with Microsoft's Trueskill project in any way, apart from the use of its model. 
