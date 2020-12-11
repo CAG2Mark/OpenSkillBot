@@ -58,12 +58,11 @@ namespace OpenTrueskillBot
                 // split the message size so it's less than discord's message limit
                 var lbStr = CurLeaderboard.GenerateLeaderboardText(2500);
                 var lbStrArr = lbStr.ToArray();
-
-                await Program.DiscordIO.PopulateChannel(Program.Config.LeaderboardChannelId, lbStrArr);
+            
+                if (lbStrArr.Length != 0 && !string.IsNullOrWhiteSpace(lbStrArr[0]))
+                    await Program.DiscordIO.PopulateChannel(Program.Config.LeaderboardChannelId, lbStrArr);
 
             }
-
-            
             SerializeLeaderboard();
         }
 

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace OpenTrueskillBot.Skill
 {
-    public struct Rank {
+    public class Rank {
         public Rank(int lowerBound, ulong roleId, string name) {
             this.LowerBound = lowerBound;
             this.RoleId = roleId;

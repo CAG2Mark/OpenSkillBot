@@ -57,6 +57,21 @@ namespace OpenTrueskillBot.Skill
         /// </summary>
         public double DisplayedSkill => this.Mu - Program.Config.TrueSkillDeviations * Sigma;
 
+        [JsonIgnore]
+        /// <summary>
+        /// Gets the current rank of the player.
+        /// </summary>
+        /// <value>The rank of the player, or null if not found.</value>
+        public Rank PlayerRank {
+            get {
+                var skill = DisplayedSkill;
+                foreach (var rank in Program.Config.Ranks) {
+                    if (rank.LowerBound <= skill) return rank;
+                }
+                return null;
+            }
+        }
+
         // Use when creating a new player
         public Player()
         {

@@ -53,11 +53,11 @@ namespace OpenTrueskillBot
 
             Config.PropertyChanged += (o, e) => SerializeConfig();
 
-            Controller = new BotController();
-
             Console.WriteLine("Bot Started");
 
             DiscordIO = new DiscordInput(DiscordToken);
+
+            Controller = new BotController();
 
             // Block this task until the program is closed.
             await Task.Delay(-1);

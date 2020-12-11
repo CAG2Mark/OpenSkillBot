@@ -3,6 +3,8 @@ using Moserware.Skills;
 using Moserware.Skills.TrueSkill;
 using System;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+using Discord.Rest;
 
 namespace OpenTrueskillBot.Skill
 {
@@ -24,9 +26,22 @@ namespace OpenTrueskillBot.Skill
         public Team Loser { get; set; }
         public bool IsDraw { get; set; }
         
-        protected void action()
+        protected async Task action()
         {
             TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
+            
+            if (Program.Config.HistoryChannelId == 0) return;
+
+            // generate message
+            var embed = MessageGenerator.MakeMatchMessage(this, this.IsDraw);
+            var chnl = Program.DiscordIO.GetChannel(Program.Config.HistoryChannelId);
+            if (this.discordMessageId == 0) {
+                await Program.DiscordIO.SendMessage("", chnl, embed);
+            }
+            else {
+                var msg = (RestUserMessage)await chnl.GetMessageAsync(this.discordMessageId);
+                await Program.DiscordIO.EditMessage(msg, "", embed);
+            }
         }
 
         protected void undoAction()
@@ -35,12 +50,19 @@ namespace OpenTrueskillBot.Skill
 
         // Currently only supports matches between two teams
         public MatchAction(Team winner, Team loser, bool isDraw = false) : base() {
-                ActionTime = DateTime.UtcNow;
+            ActionTime = DateTime.UtcNow;
             this.ActionId = Player.RandomString(16);
 
             this.Winner = winner;
             this.Loser = loser;
             this.IsDraw = isDraw;
+
+            foreach (var p in winner.Players) {
+                oldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId});
+            }
+            foreach (var p in loser.Players) {
+                oldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId});
+            }
         }
 
         // empty ctor for serialisation purposes
@@ -63,9 +85,11 @@ namespace OpenTrueskillBot.Skill
 
         public string ActionId { get; private set; }
 
-        public void DoAction()
+        private ulong discordMessageId { get; set; } = 0;
+
+        public async void DoAction()
         {
-            action();
+            await action();
             Program.CurLeaderboard.InvokeChange();
         }
 
@@ -75,7 +99,7 @@ namespace OpenTrueskillBot.Skill
             Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
         }
 
-        public void Undo()
+        public async void Undo()
         {
             mergeAllOld();
             // undoAction() just does extra things that may not be covered by the default one
@@ -104,6 +128,11 @@ namespace OpenTrueskillBot.Skill
             }
 
             Program.Controller.SerializeActions();
+
+            if (Program.Config.HistoryChannelId == 0 || this.discordMessageId == 0) return;
+            // delete message
+            var msg = (RestUserMessage) await Program.DiscordIO.GetMessage(this.discordMessageId, Program.Config.HistoryChannelId);
+            await msg.DeleteAsync();
         }
 
         public void InsertAfter(MatchAction action)

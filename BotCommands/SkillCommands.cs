@@ -19,17 +19,12 @@ namespace OpenTrueskillBot.BotCommands
                 var t1 = strToTeam(team1);
                 var t2 = strToTeam(team2);
 
+                var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
+                var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
+
                 Program.Controller.AddMatchAction(t1, t2, result);
 
-                string output = "New Ratings:" + Environment.NewLine;
-
-                // temporary
-                foreach (var player in t1.Players) {
-                    output += $"{player.IGN}: {player.DisplayedSkill.ToString("#.#")} RD {player.Sigma.ToString("#.#")}{Environment.NewLine}";
-                }
-                foreach (var player in t2.Players) {
-                    output += $"{player.IGN}: {player.DisplayedSkill.ToString("#.#")} RD {player.Sigma.ToString("#.#")}{Environment.NewLine}";
-                }
+                string output = $"The match between {t1_s} and {t2_s} has been calculated.";
 
                 return ReplyAsync(output);
             }

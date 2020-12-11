@@ -84,9 +84,9 @@ namespace OpenTrueskillBot.BotInputs
 
         }
 
-        public async Task<IMessage> SendMessage(string message, ISocketMessageChannel channel) {
+        public async Task<IMessage> SendMessage(string message, ISocketMessageChannel channel, Embed embed = null) {
             // sends the message and returns it
-            return await channel.SendMessageAsync(message);
+            return await channel.SendMessageAsync(message, false, embed);
         }
         
         public ISocketMessageChannel GetChannel(ulong id) {
@@ -99,10 +99,10 @@ namespace OpenTrueskillBot.BotInputs
             return await channel.GetMessageAsync(messageId);
         }
 
-        public async Task EditMessage(ulong messageId, ulong channelId, string newText) {
+        public async Task EditMessage(ulong messageId, ulong channelId, string newText, Embed embed = null) {
             try {
                 var msg = (RestUserMessage)await GetMessage(messageId, channelId);
-                await EditMessage(msg, newText);
+                await EditMessage(msg, newText, embed);
             }
             // error if the bot is not the author of the message
             catch (InvalidCastException) {
@@ -110,9 +110,10 @@ namespace OpenTrueskillBot.BotInputs
             }          
         }
 
-        public async Task EditMessage(RestUserMessage msg, string newText) {
+        public async Task EditMessage(RestUserMessage msg, string newText, Embed embed = null) {
             await msg.ModifyAsync(m => {
                 m.Content = newText;
+                m.Embed = embed;
             });
         }
 
