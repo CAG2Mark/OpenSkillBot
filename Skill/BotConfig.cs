@@ -20,7 +20,7 @@ namespace OpenTrueskillBot.Skill
         private List<ulong> permittedUserIds;
         private List<ulong> permittedRoleIds;
         private string challongeToken;
-        private ObservableCollection<Rank> ranks = new ObservableCollection<Rank>();
+        private List<Rank> ranks = new List<Rank>();
         public ulong unrankedId;
 
         public BotConfig() {
@@ -49,7 +49,7 @@ namespace OpenTrueskillBot.Skill
             get => trueSkillDeviations; set => Set(ref trueSkillDeviations, value);
         }
 
-        public ObservableCollection<Rank> Ranks { 
+        public List<Rank> Ranks { 
             get => ranks; set => Set(ref ranks, value); 
         }
 

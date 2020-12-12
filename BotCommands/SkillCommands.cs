@@ -42,9 +42,36 @@ namespace OpenTrueskillBot.BotCommands
             var rank = new Rank(lowerBound, roleId, rankName);
 
             Program.Config.Ranks.Add(rank);
-            Program.Config.Ranks.OrderByDescending(r => r.LowerBound);
+            Program.Config.Ranks.Sort((x, y) => y.LowerBound.CompareTo(x.LowerBound));
+
+            Program.SerializeConfig();
 
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Successfully added rank **{rankName}**"));
+        }
+
+        [Command("refreshrank")]
+        [Summary("Refreshes the rank of all players.")]
+        public async Task RefreshRankCommand() {
+
+            var channel = Context.Channel;
+
+            var total = Program.CurLeaderboard.Players.Count;
+
+            var msg = await Program.DiscordIO.SendMessage("", channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Initialising..."));
+
+            int i = 0;
+            foreach (var p in Program.CurLeaderboard.Players) {
+                var percent = ++i * 100 / total;
+                await Program.DiscordIO.EditMessage(msg, "", 
+                    EmbedHelper.GenerateInfoEmbed(
+                        $":arrows_counterclockwise: Processing {p.IGN} {Environment.NewLine}{Environment.NewLine} {i} of {total} players processed ({percent}%)"));
+                await p.UpdateRank(true);
+            }
+
+            await msg.DeleteAsync();
+            
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Refreshed the ranks of {Program.CurLeaderboard.Players.Count} players."));
         }
 
         // helpers

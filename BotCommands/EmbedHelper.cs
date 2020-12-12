@@ -14,5 +14,21 @@ namespace OpenTrueskillBot.BotCommands {
             return builder.Build();
         }
 
+        public static Embed GenerateInfoEmbed(string text) {
+            var builder = new EmbedBuilder() {
+                Color = Discord.Color.Blue
+            };
+            builder.Description = text;
+            return builder.Build();
+        }
+
+        public static Embed GenerateErrorEmbed(string text) {
+            var builder = new EmbedBuilder() {
+                Color = Discord.Color.Red
+            };
+            builder.Description = $":x: {text}";
+            return builder.Build();
+        }
+
     }
 }

@@ -20,10 +20,15 @@ namespace OpenTrueskillBot.BotInputs
 
         public CommandService Commands;
         private IServiceProvider provider;
+
+        public SocketGuild CurGuild => client.Guilds.First();
         
         public DiscordInput(string token) {
             
-            client = new DiscordSocketClient();
+            var cfg = new DiscordSocketConfig();
+            cfg.AlwaysDownloadUsers = true;
+
+            client = new DiscordSocketClient(cfg);
 
             client.MessageReceived += MessageReceived;
 
@@ -45,7 +50,11 @@ namespace OpenTrueskillBot.BotInputs
             // Start the command handler service     
             provider.GetRequiredService<CommandHandler>(); 	
 
-            LoginToDiscord(token);	
+            LoginToDiscord(token);
+
+            client.UserJoined += (user) => {
+                return client.DownloadUsersAsync(client.Guilds);
+            };
         }
 
         private void ConfigureServices(IServiceCollection services, DiscordSocketClient client, CommandService commands)
@@ -71,6 +80,10 @@ namespace OpenTrueskillBot.BotInputs
                 token);
             await client.StartAsync();
 
+            await client.DownloadUsersAsync(client.Guilds);
+
+            Console.WriteLine("Users downloaded");
+
         }
 
         private Task Log(LogMessage msg)
@@ -84,14 +97,46 @@ namespace OpenTrueskillBot.BotInputs
 
         }
 
-        public async Task<IMessage> SendMessage(string message, ISocketMessageChannel channel, Embed embed = null) {
+        public async Task<RestUserMessage> SendMessage(string message, ISocketMessageChannel channel, Embed embed = null) {
             // sends the message and returns it
             return await channel.SendMessageAsync(message, false, embed);
         }
         
         public ISocketMessageChannel GetChannel(ulong id) {
             // the bot is designed to only be in one server
-            return client.Guilds.First().GetTextChannel(id);
+            return CurGuild.GetTextChannel(id);
+        }
+
+        public SocketGuildUser GetUser(ulong userId) {
+            return CurGuild.GetUser(userId);
+        }
+
+        public async Task AddRole(ulong userId, ulong roleId) {
+            await AddRole(GetUser(userId), roleId);
+        }
+
+        public async Task AddRole(SocketGuildUser user, ulong roleId) {
+            await user.AddRoleAsync(CurGuild.GetRole(roleId));
+        }
+
+        public async Task RemoveRole(ulong userId, ulong roleId) {
+            await RemoveRole(GetUser(userId), roleId);
+        }
+
+        public async Task RemoveRole(SocketGuildUser user, ulong roleId) {
+            await user.RemoveRoleAsync(CurGuild.GetRole(roleId));
+        }
+
+        public async Task RemoveRoles(ulong userId, IEnumerable<ulong> roleIds) {
+            await RemoveRoles(GetUser(userId), roleIds);
+        }
+
+        public async Task RemoveRoles(SocketGuildUser user, IEnumerable<ulong> roleIds) {
+            var roles = new List<SocketRole>();
+            foreach (var id in roleIds) {
+                roles.Add(CurGuild.GetRole(id));
+            }
+            await user.RemoveRolesAsync(roles);
         }
 
         public async Task<IMessage> GetMessage(ulong messageId, ulong channelId) {
@@ -143,6 +188,10 @@ namespace OpenTrueskillBot.BotInputs
             catch (InvalidCastException) {
                 throw new Exception($"Cannot edit message. The bot is not the author of the message.");
             }    
+        }
+
+        public async Task Logout() {
+            await client.LogoutAsync();
         }
     }
 }

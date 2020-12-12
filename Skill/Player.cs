@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using Moserware.Skills;
+using System.Timers;
 
 namespace OpenTrueskillBot.Skill
 {
@@ -30,26 +32,57 @@ namespace OpenTrueskillBot.Skill
         /// The player's Discord ID.
         /// </summary>
         /// <value></value>
-        public long DiscordId { get; set; }
-
+        public ulong DiscordId { get => discordId; set { discordId = value; }}
         /// <summary>
         /// The player's standard deviation.
         /// </summary>
-        public double Sigma 
-        { 
-            get => sigma; 
-            set 
+        public double Sigma
+        {
+            get => sigma;
+            set
             {
                 // a standard deviation of zero or less is mathematically undefined
-                if (sigma <= 0) throw new ArithmeticException("The standard deviation of a player cannot be less than zero.");
-
+                if (sigma <= 0) throw new ArithmeticException("The standard deviation of a player cannot be less than or equal to zero.");
                 sigma = value;
-            } 
+
+                QueueRankRefresh();
+            }
         }
         /// <summary>
         /// The player's mean skill value as shown on the normal distribution.
         /// </summary>
-        public double Mu { get; set; }
+        public double Mu
+        {
+            get => mu;
+            set
+            {
+                mu = value;
+                QueueRankRefresh();
+            }
+        }
+
+        Timer rankRefreshTimer = new Timer(2000);
+        private bool rankRefreshQueued = false;
+        private bool hardRefreshQueued = false;
+
+        private void initRankRefresh()
+        {
+            rankRefreshTimer.Start();
+            rankRefreshTimer.Elapsed += async (o, e) =>
+            {
+                if (rankRefreshQueued) {
+                    await UpdateRank(hardRefreshQueued);
+                    hardRefreshQueued = false;
+                    rankRefreshQueued = false;
+                }
+            };
+        }
+        public void QueueRankRefresh(bool hard = false)
+        {
+            hardRefreshQueued = hardRefreshQueued || hard;
+            rankRefreshQueued = true;
+        }
+
 
         [JsonIgnore]
         /// <summary>
@@ -57,25 +90,79 @@ namespace OpenTrueskillBot.Skill
         /// </summary>
         public double DisplayedSkill => this.Mu - Program.Config.TrueSkillDeviations * Sigma;
 
-        [JsonIgnore]
+        public static Rank GetRank(double mu, double sigma) {
+            return GetRank(mu - sigma * Program.Config.TrueSkillDeviations);
+        }
+        public static Rank GetRank(double skill) {
+            foreach (var rank in Program.Config.Ranks)
+            {
+                // note: ranks are sorted in descending order
+                if (rank.LowerBound <= skill)
+                {
+                    return rank;
+                }
+            }
+            return null;
+        }
+
+        public void RefreshRank() {
+            this.PlayerRank = GetRank(DisplayedSkill);
+        } 
+
+
+        public Rank PlayerRank { get; set; } = null;
+
         /// <summary>
         /// Gets the current rank of the player.
         /// </summary>
         /// <value>The rank of the player, or null if not found.</value>
-        public Rank PlayerRank {
-            get {
-                var skill = DisplayedSkill;
-                foreach (var rank in Program.Config.Ranks) {
-                    if (rank.LowerBound <= skill) return rank;
+        public async Task UpdateRank(bool hardRefresh = false)
+        {
+            if (Program.Config.Ranks == null || Program.Config.Ranks.Count == 0) return;
+
+            var oldRank = this.PlayerRank;
+            RefreshRank();
+
+            if (this.discordId == 0) return;
+
+            if (oldRank == null || !oldRank.Equals(this.PlayerRank) || hardRefresh) {
+                // check if the player exists
+                var player = Program.DiscordIO.GetUser(this.DiscordId);
+                if (player == null) return;
+
+                try {
+                    if (oldRank != null && !hardRefresh)
+                        await Program.DiscordIO.RemoveRole(player, oldRank.RoleId);
                 }
-                return null;
+                catch (Exception) {
+                    // todo: log error
+                }
+
+                try {
+                    // hard refresh
+                    if (hardRefresh) {
+                        await Program.DiscordIO.RemoveRoles(player, Program.Config.Ranks.Select(o => o.RoleId));
+                    }
+                }
+                catch (Exception) {
+
+                }
+                try {
+                    if (this.PlayerRank != null)
+                        await Program.DiscordIO.AddRole(player, PlayerRank.RoleId);
+                }
+                catch (Exception) {
+                }
             }
+
+
         }
 
         // Use when creating a new player
         public Player()
         {
             this.UUId = RandomString(16);
+            initRankRefresh();
         }
 
         // Use when creating a new player with a non-standard starting trueskill
@@ -86,12 +173,16 @@ namespace OpenTrueskillBot.Skill
             this.Mu = mu;
 
             if (sigma != -1) this.Sigma = sigma;
+
+            initRankRefresh();
         }
 
 
         // Source: https://stackoverflow.com/questions/1344221/how-can-i-generate-random-alphanumeric-strings
         private static Random random = new Random();
         private double sigma = Program.Config.DefaultSigma;
+        private double mu;
+        private ulong discordId = 0;
 
         public static string RandomString(int length)
         {

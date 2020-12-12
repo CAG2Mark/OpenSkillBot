@@ -17,13 +17,20 @@ namespace OpenTrueskillBot.BotCommands
         public Task PingCommand() {
 
             var timeSent = Context.Message.Timestamp;
-            var timeNow = DateTimeOffset.UtcNow;
-
-            
+            var timeNow = DateTimeOffset.UtcNow;            
 
             var diff = Math.Abs(timeNow.Ticks - timeSent.Ticks) / TimeSpan.TicksPerMillisecond;
 
             return ReplyAsync("Ping received. Latency was " + diff.ToString() + "ms");
+        }
+
+        
+        [Command("exit")]
+        [Summary("Kills the current bot process.")]
+        public async Task KillCommand() {
+            await ReplyAsync("OpenTrueskillBot was slain by " + Context.Message.Author.Username);
+            await Program.DiscordIO.Logout();
+            Environment.Exit(0);
         }
 
         [Command("echo")]
@@ -88,7 +95,7 @@ namespace OpenTrueskillBot.BotCommands
         [Name("help <query>")]
         [Command("help")]
         [Summary("Searches for commands that match the query and returns their usages.")]
-        public Task HelpAsync([Summary("The command to search for.")]string query)
+        public Task HelpCommand([Summary("The command to search for.")]string query)
         {
             var result = Program.DiscordIO.Commands.Search(Context, query);
 
@@ -121,5 +128,8 @@ namespace OpenTrueskillBot.BotCommands
 
             return ReplyAsync("", false, builder.Build());
         }
+
+        
+        
     }
 }

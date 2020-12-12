@@ -15,6 +15,31 @@ namespace OpenTrueskillBot.Skill
         public int LowerBound { get; }
         public ulong RoleId { get; }
         public string Name { get; }
+
+        // override object.Equals
+        public override bool Equals(object obj)
+        {
+            //
+            // See the full list of guidelines at
+            //   http://go.microsoft.com/fwlink/?LinkID=85237
+            // and also the guidance for operator== at
+            //   http://go.microsoft.com/fwlink/?LinkId=85238
+            //
+            
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+
+            var rank = (Rank)obj;
+            return this.LowerBound == rank.LowerBound && this.Name == rank.Name && this.RoleId == rank.RoleId;
+        }
+        
+        // override object.GetHashCode
+        public override int GetHashCode()
+        {
+            return this.LowerBound.GetHashCode() * 17 + this.RoleId.GetHashCode() * 7 + this.Name.GetHashCode();
+        }
     }
 
     public class Leaderboard
@@ -33,14 +58,19 @@ namespace OpenTrueskillBot.Skill
 
             Players.Add(p);
             // Todo: implement a faster insertion algorithm
-            Players.OrderByDescending(p => p.DisplayedSkill);
+            sortBoard();
 
             InvokeChange();
 
         }
 
+        private void sortBoard() {
+            Players.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
+        }
+
         public event EventHandler LeaderboardChanged;
         public void InvokeChange() {
+            sortBoard();
             LeaderboardChanged?.Invoke(this, new EventArgs());
         }
 
@@ -63,7 +93,7 @@ namespace OpenTrueskillBot.Skill
         /// Fuzzy searches for a player.
         /// </summary>
         /// <param name="query">The player to search for.</param>
-        /// <returns>The player that was found.!-- Will return null if not found.--></returns>
+        /// <returns>The player that was found. Will return null if not found.</returns>
         public Player FuzzySearch(string query) {
             query = query.ToLower();
             return Players.Find(p => {
@@ -81,8 +111,21 @@ namespace OpenTrueskillBot.Skill
             var nl = Environment.NewLine;
             var sb = new StringBuilder();
 
+            int p = 0;
             foreach(var player in Players) {
-                var nextStr = $"{player.IGN}: {Math.Round(player.DisplayedSkill).ToString("#")} RD {Math.Round(player.Sigma).ToString("#")}{nl}";
+                var nextStr = "";
+
+                // print ranks in the correct position
+                // looks to be O(n^2) but is actually O(n)
+                var ranks = Program.Config.Ranks;
+                for (int i = p; i < ranks.Count; ++i) {
+                    if (i == 0 || ranks[i - 1].LowerBound > player.DisplayedSkill) {
+                        nextStr += "**" + ranks[i].Name + "**" + nl;
+                        p = i + 1;
+                    }
+                }
+                
+                nextStr += $"{player.IGN}: {Math.Round(player.DisplayedSkill).ToString("#")} RD {Math.Round(player.Sigma).ToString("#")}{nl}";
 
                 if (sb.Length + nextStr.Length > charLimit) {
                     yield return sb.ToString();
