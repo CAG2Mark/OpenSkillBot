@@ -95,14 +95,19 @@ namespace OpenTrueskillBot.Skill
         /// <param name="query">The player to search for.</param>
         /// <returns>The player that was found. Will return null if not found.</returns>
         public Player FuzzySearch(string query) {
+            if (string.IsNullOrWhiteSpace(query) || query.Length < 3) return null;
+
             query = query.ToLower();
-            return Players.Find(p => {
+            var player = Players.Find(p => {
                 string name = p.IGN.Substring(0, Math.Min(query.Length, p.IGN.Length)).ToLower();
+                return query.Equals(name);
+            });
+            if (player != null) return player;
+            else return Players.Find(p => {
                 string alias = null;
-                if (p.Alias != null)
-                    p.Alias.Substring(0, query.Length);
-                
-                return query.Equals(name) || query.Equals(alias);
+                if (!string.IsNullOrWhiteSpace(p.Alias))
+                    alias = p.Alias.Substring(0, Math.Min(query.Length, p.Alias.Length)).ToLower(); 
+                return query.Equals(alias);
             });
         }
 

@@ -4,37 +4,50 @@ using System;
 using System.Threading.Tasks;
 using OpenTrueskillBot.Skill;
 using System.Linq;
+using System.Collections.Generic;
+using System.Text;
 
 namespace OpenTrueskillBot.BotCommands
 {
+    [RequirePermittedRole]
     [Name("Match Commands")]
     public class SkillCommands : ModuleBase<SocketCommandContext> {
+
+        [RequirePermittedRole]
         [Command("fullmatch")]
         [Alias(new string[] { "fm" })]
         [Summary("Calculates a full match between two teams.")]
-        public Task FullMatchCommand([Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
+        public async Task FullMatchCommand([Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
             [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
 
             try {
-                var t1 = strToTeam(team1);
-                var t2 = strToTeam(team2);
+                Team t1;
+                Team t2;
+                try {
+                    t1 = strToTeam(team1);
+                    t2 = strToTeam(team2);
+                }
+                catch (Exception e) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                    return;
+                }
 
                 var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
                 var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
 
-                Program.Controller.AddMatchAction(t1, t2, result);
+                await Program.Controller.AddMatchAction(t1, t2, result);
 
-                string output = $"The match between {t1_s} and {t2_s} has been calculated.";
+                string output = $"The match between **{t1_s}** and **{t2_s}** has been calculated.";
 
-                return ReplyAsync(output);
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output));
             }
             catch (Exception e) {
-                return ReplyAsync(e.Message);
+                await ReplyAsync(e.Message);
             }
         }
 
         [Command("addrank")]
-        [Summary("Adds a new player rank.")]
+        [Summary("Adds a new player rank. If you want ranks to be updated, you must run !refreshrank after this.")]
         public Task AddRankCommand([Summary("The minimum skill to be in this rank.")] int lowerBound, 
             [Summary("The role ID that people in this rank should be assigned")] ulong roleId,
             [Remainder][Summary("The name of the rank.")] string rankName) {
@@ -47,6 +60,19 @@ namespace OpenTrueskillBot.BotCommands
             Program.SerializeConfig();
 
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Successfully added rank **{rankName}**"));
+        }
+
+        [Command("deleterank")]
+        [Summary("Removes a player rank. If you want ranks to be updated, you must run !refreshrank after this.")]
+        public Task DeleteRank([Remainder][Summary("The exact name of the rank (capitalisation does not matter).")] string rankName) {
+
+            var rank = Program.Config.Ranks.FirstOrDefault(r => r.Name.ToLower().Equals(rankName.ToLower()));
+
+            Program.Config.Ranks.Remove(rank);
+
+            Program.SerializeConfig();
+
+            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Removed the rank **{rankName}**"));
         }
 
         [Command("refreshrank")]
@@ -70,8 +96,57 @@ namespace OpenTrueskillBot.BotCommands
             }
 
             await msg.DeleteAsync();
+
+            Program.CurLeaderboard.InvokeChange();
             
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Refreshed the ranks of {Program.CurLeaderboard.Players.Count} players."));
+        }
+
+        [Command("undo")]
+        [Summary("Undos a given number of matches.")]
+        public async Task UndoCommand([Summary("The number of matches to undo (default is 1).")] int count = 1) {
+            if (count == 0) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Couldn't undo any matches because you didn't tell me to undo any, nerd. :sunglasses:"));
+                return;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append($"**The following {(count == 1 ? "match was" : "matches were")} undone:**{Environment.NewLine}{Environment.NewLine}");
+            for (int i = 0; i < count; ++i) {
+                var match = await Program.Controller.UndoAction();
+                var winnerText = string.Join(", ", match.Winner.Players.Select(x => x.IGN));
+                var loserText = string.Join(", ", match.Loser.Players.Select(x => x.IGN));
+                sb.Append($"**{winnerText}** vs **{loserText}**{Environment.NewLine}");
+            }
+            
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
+        }
+
+        [Command("undo")]
+        [Summary("Undos a specific match.")]
+        public async Task UndoCommand([Summary("The ID of the match.")] string id) {
+
+            // special case
+            if (Program.Controller.LatestAction.ActionId.Equals(id)) {
+                await UndoCommand(1);
+                return;
+            }
+
+            // find the match
+            var matchTuple = Program.Controller.LatestAction.FindMatch(id);
+            var match = matchTuple.Item1;
+            await match.Undo();
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append($"**The following match was undone:**{Environment.NewLine}{Environment.NewLine}");
+
+            var winnerText = string.Join(", ", match.Winner.Players.Select(x => x.IGN));
+            var loserText = string.Join(", ", match.Loser.Players.Select(x => x.IGN));
+            sb.Append($"**{winnerText}** vs **{loserText}**{Environment.NewLine}{Environment.NewLine}");
+
+            sb.Append($"**{matchTuple.Item2 - 1}** subsequent match{(matchTuple.Item2 == 2 ? "" : "es")} were re-calculated.");
+            
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
         }
 
         // helpers
@@ -81,7 +156,7 @@ namespace OpenTrueskillBot.BotCommands
             var players = new Player[split.Length];
 
             for (int i = 0; i < split.Length; ++i) {
-                var player = Program.CurLeaderboard.FuzzySearch(split[i]);
+                var player = PlayerManagementCommands.FindPlayer(split[i]);
                 if (player != null) {
                     players[i] = player;
                 }

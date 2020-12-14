@@ -5,6 +5,7 @@ using System.IO;
 using Discord;
 using System.Linq;
 using System.Timers;
+using System.Threading.Tasks;
 
 namespace OpenTrueskillBot
 {
@@ -93,7 +94,7 @@ namespace OpenTrueskillBot
             }
         }
 
-        public MatchAction AddMatchAction(Team team1, Team team2, int result) {
+        public async Task<MatchAction> AddMatchAction(Team team1, Team team2, int result) {
             // swap if result is 2
             if (result == 2) {
                 var temp = team1;
@@ -105,10 +106,10 @@ namespace OpenTrueskillBot
 
             if (LatestAction != null) {
                 // note: this does recalculate
-                LatestAction.InsertAfter(action);
+                await LatestAction.InsertAfter(action);
             }
             else {
-                action.DoAction();
+                await action.DoAction();
             }
 
             LatestAction = action;
@@ -117,6 +118,13 @@ namespace OpenTrueskillBot
 
             return action;
 
+        }
+
+        public async Task<MatchAction> UndoAction() {
+            var action = LatestAction;
+            await action.Undo();
+            LatestAction = action.PrevAction;
+            return action;
         }
     }
 }

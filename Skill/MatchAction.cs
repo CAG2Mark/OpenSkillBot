@@ -5,6 +5,8 @@ using System;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Discord.Rest;
+using Newtonsoft.Json;
+using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 
 namespace OpenTrueskillBot.Skill
 {
@@ -36,7 +38,7 @@ namespace OpenTrueskillBot.Skill
             var embed = MessageGenerator.MakeMatchMessage(this, this.IsDraw);
             var chnl = Program.DiscordIO.GetChannel(Program.Config.HistoryChannelId);
             if (this.discordMessageId == 0) {
-                await Program.DiscordIO.SendMessage("", chnl, embed);
+                this.discordMessageId = (await Program.DiscordIO.SendMessage("", chnl, embed)).Id;
             }
             else {
                 var msg = (RestUserMessage)await chnl.GetMessageAsync(this.discordMessageId);
@@ -85,9 +87,10 @@ namespace OpenTrueskillBot.Skill
 
         public string ActionId { get; private set; }
 
+        [JsonProperty]
         private ulong discordMessageId { get; set; } = 0;
 
-        public async void DoAction()
+        public async Task DoAction()
         {
             await action();
             Program.CurLeaderboard.InvokeChange();
@@ -99,7 +102,7 @@ namespace OpenTrueskillBot.Skill
             Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
         }
 
-        public async void Undo()
+        public async Task Undo()
         {
             mergeAllOld();
             // undoAction() just does extra things that may not be covered by the default one
@@ -108,7 +111,7 @@ namespace OpenTrueskillBot.Skill
             // recalculate future values
             if (NextAction != null)
             {
-                NextAction.ReCalculateNext();
+                await NextAction.ReCalculateNext();
             }
             else
             {
@@ -132,10 +135,11 @@ namespace OpenTrueskillBot.Skill
             if (Program.Config.HistoryChannelId == 0 || this.discordMessageId == 0) return;
             // delete message
             var msg = (RestUserMessage) await Program.DiscordIO.GetMessage(this.discordMessageId, Program.Config.HistoryChannelId);
-            await msg.DeleteAsync();
+            if (msg != null)
+                await msg.DeleteAsync();
         }
 
-        public void InsertAfter(MatchAction action)
+        public async Task InsertAfter(MatchAction action)
         {
             if (this.NextAction != null)
             {
@@ -150,21 +154,27 @@ namespace OpenTrueskillBot.Skill
             action.PrevAction = this;
             this.NextAction = action;
 
-            action.ReCalculateNext();
+            await action.ReCalculateNext();
 
             Program.Controller.SerializeActions();
         }
 
         #region Recursive functions
 
-        public void ReCalculateNext()
+        public Tuple<MatchAction, int> FindMatch(string id, int depth = 1) {
+            // goes backwards
+            if (this.ActionId.Equals(id)) return new Tuple<MatchAction, int>(this, depth);
+            else return this.PrevAction.FindMatch(id, depth + 1);
+        }
+
+        public async Task ReCalculateNext()
         {
 
-            DoAction();
+            await DoAction();
 
             if (this.NextAction != null)
             {
-                this.NextAction.ReCalculateNext();
+                await this.NextAction.ReCalculateNext();
             }
         }
 

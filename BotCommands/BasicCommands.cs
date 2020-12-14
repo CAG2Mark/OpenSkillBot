@@ -4,6 +4,7 @@ using Discord;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
+using System.Text;
 
 namespace OpenTrueskillBot.BotCommands
 {
@@ -11,7 +12,6 @@ namespace OpenTrueskillBot.BotCommands
     public class BasicCommands : ModuleBase<SocketCommandContext>
     {
         
-
         [Command("ping")]
         [Summary("Pings the bot.")]
         public Task PingCommand() {
@@ -24,7 +24,15 @@ namespace OpenTrueskillBot.BotCommands
             return ReplyAsync("Ping received. Latency was " + diff.ToString() + "ms");
         }
 
-        
+        [Command("fixcag")]
+        [Summary("Fixes CAG.")]
+        public Task FixCAGCommand() {
+            var rand = new Random();
+            var num = rand.Next();
+            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Fixed a total of **{num}** CAGs."));
+        }
+
+        [RequireUserPermission(GuildPermission.ManageGuild)]
         [Command("exit")]
         [Summary("Kills the current bot process.")]
         public async Task KillCommand() {
@@ -39,14 +47,17 @@ namespace OpenTrueskillBot.BotCommands
             return ReplyAsync(message);
         }
 
+        [RequireUserPermission(GuildPermission.ManageGuild)]
         [Command("linkchannels")]
         [Summary("Links the commands channel, the leaderboard channel, and the match history channel, in that order.")]
         public Task LinkChannelsCommand(
             [Summary("The ID of the commands channel.")] ulong commandsId,
+            [Summary("The ID of the logs channel.")] ulong logsId,
             [Summary("The ID of the leaderboard channel.")] ulong leaderboardId,
             [Summary("The ID of the match history channel.")] ulong historyId) {
 
             Program.Config.CommandChannelId = commandsId;
+            Program.Config.LogsChannelId = logsId;
             Program.Config.LeaderboardChannelId = leaderboardId;
             Program.Config.HistoryChannelId = historyId;
 
@@ -55,6 +66,24 @@ namespace OpenTrueskillBot.BotCommands
            
 
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Succesfully linked."));
+        }
+
+        [RequireUserPermission(GuildPermission.ManageGuild)]
+        [Command("addpermittedrole")]
+        [Summary("Adds a role that is permitted to use the bot skill commands.")]
+        public Task AddPermittedRoleCommand([Remainder][Summary("The name of the role to add.")] string roleName) {
+            Program.Config.PermittedRoleNames.Add(roleName.Trim().ToLower());
+            Program.SerializeConfig();
+            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Permitted users with the role **{roleName}**."));
+        }
+
+        [RequireUserPermission(GuildPermission.ManageGuild)]
+        [Command("removepermittedrole")]
+        [Summary("Adds a role that is permitted to use the bot skill commands.")]
+        public Task RemovePermittedRoleCommand([Remainder][Summary("The name of the role to remove.")] string roleName) {
+            Program.Config.PermittedRoleNames.Remove(roleName);
+            Program.SerializeConfig();
+            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{roleName}** is no longer a permitted role."));
         }
 
         [Command("help")]
@@ -92,7 +121,28 @@ namespace OpenTrueskillBot.BotCommands
             return ReplyAsync("", false, builder.Build());
         }
 
-        [Name("help <query>")]
+        public static string GenerteHelpText(string command) {
+            var result = Program.DiscordIO.Commands.Search(command);string prefix = Program.prefix.ToString();
+
+            var sb = new StringBuilder();
+
+            foreach (var match in result.Commands)
+            {
+                var cmd = match.Command;
+
+                sb.Append("**" + prefix + cmd.Name + "** (Aliases: !" + string.Join(", !", cmd.Aliases) + ")" + Environment.NewLine);
+                if (cmd.Parameters.Count != 0) {
+                    sb.Append($"*Usage: {prefix}{cmd.Name} " +  
+                        $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[" + p.Name + " = " + p.DefaultValue + "]" : "<" + p.Name + ">"))}*");
+                    sb.Append(Environment.NewLine);
+                }
+                sb.Append(cmd.Summary + Environment.NewLine + Environment.NewLine);
+            }
+
+            return sb.ToString();
+        }
+
+        [Name("help")]
         [Command("help")]
         [Summary("Searches for commands that match the query and returns their usages.")]
         public Task HelpCommand([Summary("The command to search for.")]string query)
@@ -119,7 +169,8 @@ namespace OpenTrueskillBot.BotCommands
                 {
                     x.Name = prefix + cmd.Name + " (Aliases: !" + string.Join(", !", cmd.Aliases) + ")";
                     if (cmd.Parameters.Count != 0) {
-                        x.Value += $"_Parameters: {string.Join(", ", cmd.Parameters.Select(p => p.Name))}_\n";
+                        x.Value +=  $"Usage: {prefix}{cmd.Name} " +  
+                            $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[" + p.Name + " = " + p.DefaultValue + "]" : "<" + p.Name + ">"))}\n";
                     }
                     x.Value += $"{cmd.Summary}";
                     x.IsInline = false;
@@ -128,6 +179,8 @@ namespace OpenTrueskillBot.BotCommands
 
             return ReplyAsync("", false, builder.Build());
         }
+
+        
 
         
         

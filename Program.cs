@@ -34,6 +34,7 @@ namespace OpenTrueskillBot
         static void Main(string[] args)
         		=> new Program().MainAsync().GetAwaiter().GetResult();
 
+        public static int InitTime = 0;
         public async Task MainAsync() {
 
             if (File.Exists("config.json"))
@@ -53,11 +54,15 @@ namespace OpenTrueskillBot
 
             Config.PropertyChanged += (o, e) => SerializeConfig();
 
-            Console.WriteLine("Bot Started");
+            var initTime = DateTime.UtcNow;
 
             DiscordIO = new DiscordInput(DiscordToken);
 
             Controller = new BotController();
+
+            var doneTime = DateTime.UtcNow;
+
+            InitTime = (int)((doneTime - initTime).Ticks / TimeSpan.TicksPerMillisecond);
 
             // Block this task until the program is closed.
             await Task.Delay(-1);

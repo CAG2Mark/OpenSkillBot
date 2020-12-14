@@ -4,6 +4,9 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Moserware.Skills;
 using System.Timers;
+using System.Text;
+using Newtonsoft.Json;
+using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 
 namespace OpenTrueskillBot.Skill
 {
@@ -175,6 +178,23 @@ namespace OpenTrueskillBot.Skill
             if (sigma != -1) this.Sigma = sigma;
 
             initRankRefresh();
+        }
+ 
+        public string GenerateSummary() {
+            StringBuilder sb = new StringBuilder();
+            var nl = Environment.NewLine;
+            sb.Append($"**Name**: {this.IGN}{nl}");
+            sb.Append($"**Alias**: {(string.IsNullOrWhiteSpace(this.Alias) ? "None" : this.Alias)}{nl}");
+            sb.Append($"**Skill**: {r(this.DisplayedSkill)} RD {r(this.Sigma)}{nl}");
+            var user = this.DiscordId == 0 ? null : Program.DiscordIO.GetUser(this.DiscordId);
+            sb.Append($"**Discord Link**: {(user == null ? "None" : $"Linked as {user.Username}#{user.DiscriminatorValue} with ID {this.DiscordId}")}{nl}");
+            sb.Append($"**Bot ID:** {this.UUId}");
+
+            return sb.ToString();
+        }
+
+        private static int r(double f) {
+            return (int)Math.Round(f, 0);
         }
 
 

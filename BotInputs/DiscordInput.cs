@@ -30,7 +30,7 @@ namespace OpenTrueskillBot.BotInputs
 
             client = new DiscordSocketClient(cfg);
 
-            client.MessageReceived += MessageReceived;
+            // client.MessageReceived += MessageReceived;
 
             Commands = new CommandService();
             // commandHandler = new CommandHandler(client, commands);
@@ -51,6 +51,11 @@ namespace OpenTrueskillBot.BotInputs
             provider.GetRequiredService<CommandHandler>(); 	
 
             LoginToDiscord(token);
+
+            client.Ready += async () => {           
+                await Log(new LogMessage(LogSeverity.Info, "Program",
+                    $"Bot started. Initialisation time was {Program.InitTime}ms"));
+            };
 
             client.UserJoined += (user) => {
                 return client.DownloadUsersAsync(client.Guilds);
@@ -82,14 +87,50 @@ namespace OpenTrueskillBot.BotInputs
 
             await client.DownloadUsersAsync(client.Guilds);
 
-            Console.WriteLine("Users downloaded");
-
         }
 
-        private Task Log(LogMessage msg)
+        public async Task Log(LogMessage msg)
         {
+
             Console.WriteLine(msg.ToString());
-            return Task.CompletedTask;
+            
+            if (client.ConnectionState == ConnectionState.Connected && Program.Config.LogsChannelId != 0) {
+                try {
+                    var channel = this.GetChannel(Program.Config.LogsChannelId);
+                    Color color;
+                    switch (msg.Severity) {
+                        case LogSeverity.Critical:
+                            color = Discord.Color.DarkRed;
+                            break;
+                        case LogSeverity.Error:
+                            color = Discord.Color.Red;
+                            break;
+                        case LogSeverity.Warning:
+                            color = Discord.Color.Gold;
+                            break;
+                        case LogSeverity.Verbose:
+                            color = Discord.Color.Blue;
+                            break;
+                        case LogSeverity.Info:
+                            color = Discord.Color.Blue;
+                            break;
+                        default:
+                            color = new Color(255, 255, 255);
+                            break;
+                    }
+                    var embed = new EmbedBuilder()
+                        .WithColor(color)
+                        .WithFooter(msg.Severity.ToString())
+                        .WithTimestamp(DateTime.UtcNow);
+                    embed.Description = "**" + msg.Source + "**: " + msg.Message;
+
+                    await SendMessage("", channel, embed.Build());
+                }
+                catch (Exception) {
+                    Console.WriteLine("Warning: Could not write to Discord logs channel!");
+                }
+            }
+
         }
 
         // Task when message is received on Discord

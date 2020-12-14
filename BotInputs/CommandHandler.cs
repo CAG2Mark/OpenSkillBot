@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Discord.Commands;
 using Discord.WebSocket;
+using OpenTrueskillBot.BotCommands;
 
 // Mostly copied from the Discord.NET documentation.
 
@@ -69,8 +70,14 @@ namespace OpenTrueskillBot.BotInputs
             // to be executed; however, this may not always be desired,
             // as it may clog up the request queue should a user spam a
             // command.
-            // if (!result.IsSuccess)
-            // await context.Channel.SendMessageAsync(result.ErrorReason);
+            if (!result.IsSuccess) {
+                if (result.Error.Equals(CommandError.BadArgCount) || result.Error.Equals(CommandError.ParseFailed)) {
+                    var cmd = message.Content.Replace(Program.prefix.ToString(), "").Split(" ")[0];
+                    await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateInfoEmbed(BasicCommands.GenerteHelpText(cmd)));
+                    return;
+                }
+                await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateErrorEmbed(result.ErrorReason));
+            }
         }
     }
 }
