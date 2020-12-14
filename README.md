@@ -8,16 +8,18 @@ Currently working features:
 * Match calculations, including teams
 * Saving of state between instances
 * Leaderboard channel send
+* Undo functions
+* Player Discord linking.
+* Player ranks.
+* Match history channel
+* Skill change detection
+* Logging.
 
 The following features are implemented in code, but are not yet accessible via the interface:
-* Undo functions
 * Match insertion
 
 Not yet implemeneted features (non-exhaustive):
-* Player ranks.
 * Challonge integration.
-* Match history channel
-* Skill change detection
  
 # Disclaimer
 
