@@ -27,7 +27,7 @@ namespace OpenTrueskillBot.BotCommands
             Program.Controller.CurLeaderboard.AddPlayer(np);
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
-                $"Added player **{name}** with skill {skill} RD {rd}.")
+                $"Added player **{name}** with skill {np.DisplayedSkill} RD {np.Sigma}.")
                 );
         }
         
@@ -56,7 +56,7 @@ namespace OpenTrueskillBot.BotCommands
             Program.Controller.CurLeaderboard.AddPlayer(np);
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
-                $"Added player **{name}** with skill {skill} RD {rd}," 
+                $"Added player **{name}** with skill {np.DisplayedSkill} RD {np.Sigma}," 
                 + $" and linked them to the Discord User **{user.Username}#{user.DiscriminatorValue}**.")
                 );
         }

@@ -22,6 +22,8 @@ namespace OpenTrueskillBot.BotInputs
         private IServiceProvider provider;
 
         public SocketGuild CurGuild => client.Guilds.First();
+
+        public bool IsReady { get; private set; }
         
         public DiscordInput(string token) {
             
@@ -53,6 +55,7 @@ namespace OpenTrueskillBot.BotInputs
             LoginToDiscord(token);
 
             client.Ready += async () => {           
+                this.IsReady = true;
                 await Log(new LogMessage(LogSeverity.Info, "Program",
                     $"Bot started. Initialisation time was {Program.InitTime}ms"));
             };

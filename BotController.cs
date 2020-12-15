@@ -21,6 +21,15 @@ namespace OpenTrueskillBot
 
         private bool lbChangeQueued = false; 
 
+        private string resetToken;
+        public string GenerateResetToken() {
+            resetToken = Player.RandomString(6);;
+            return resetToken;
+        }
+        public bool CheckResetToken(string token) {
+            return token.Equals(this.resetToken);
+        }
+
         public MatchAction LatestAction;
         public BotController() {
             // get leaderboard

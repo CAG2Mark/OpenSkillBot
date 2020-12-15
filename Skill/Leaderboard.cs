@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace OpenTrueskillBot.Skill
 {
@@ -87,6 +88,15 @@ namespace OpenTrueskillBot.Skill
                 found.Sigma = old.Sigma;
                 found.Mu = old.Mu;
             }
+        }
+
+        public async Task Reset() {
+            foreach (var player in Players) {
+                player.Mu = Program.Config.DefaultMu;
+                player.Sigma = Program.Config.DefaultSigma;
+                await Task.Delay(200);
+            }
+            this.InvokeChange();
         }
 
         /// <summary>

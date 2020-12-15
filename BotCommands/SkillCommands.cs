@@ -10,7 +10,7 @@ using System.Text;
 namespace OpenTrueskillBot.BotCommands
 {
     [RequirePermittedRole]
-    [Name("Match Commands")]
+    [Name("Skill Commands")]
     public class SkillCommands : ModuleBase<SocketCommandContext> {
 
         [RequirePermittedRole]
@@ -100,6 +100,23 @@ namespace OpenTrueskillBot.BotCommands
             Program.CurLeaderboard.InvokeChange();
             
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Refreshed the ranks of {Program.CurLeaderboard.Players.Count} players."));
+        }
+
+        [Command("resetleaderboard")]
+        [Summary("Resets the leaderboard.")]
+        public async Task ResetLeaderboardCommand([Summary("The provided reset token.")]string token = null) {
+            if (string.IsNullOrEmpty(token)) {
+                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Please type **{Program.prefix}resetleaderboard** `{Program.Controller.GenerateResetToken()}` to confirm this action."));
+            }
+            else if (Program.Controller.CheckResetToken(token)) {
+                var msg = await Program.DiscordIO.SendMessage("", Context.Channel, EmbedHelper.GenerateInfoEmbed("Resetting the leaderboard... (this might take a while to avoid spamming the API)"));
+                await Program.CurLeaderboard.Reset();
+                await msg.DeleteAsync();
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"The leaderboard has been reset."));
+            }
+            else {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Invalid token."));
+            }
         }
 
         [Command("undo")]

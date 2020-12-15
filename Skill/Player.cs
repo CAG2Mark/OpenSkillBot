@@ -126,8 +126,8 @@ namespace OpenTrueskillBot.Skill
             var oldRank = this.PlayerRank;
             RefreshRank();
 
-            if (this.discordId == 0) return;
-
+            if (this.discordId == 0 || !Program.DiscordIO.IsReady) return;
+            
             if (oldRank == null || !oldRank.Equals(this.PlayerRank) || hardRefresh) {
                 // check if the player exists
                 var player = Program.DiscordIO.GetUser(this.DiscordId);
