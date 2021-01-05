@@ -24,12 +24,28 @@ namespace OpenTrueskillBot.BotCommands
             return ReplyAsync("Ping received. Latency was " + diff.ToString() + "ms");
         }
 
+        // These two commands were implemented for fun and as an easter egg. They provide no functionality.
+
         [Command("fixcag")]
-        [Summary("Fixes CAG.")]
+        [Summary("Fixes CAG. (Easter Egg)")]
         public Task FixCAGCommand() {
             var rand = new Random();
             var num = rand.Next();
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Fixed a total of **{num}** CAGs."));
+        }
+
+        [Command("betterbot")]
+        [Summary("Gives the superior Discord bot. (Easter Egg)")]
+        public Task BetterBotCommand(string a) {
+            return ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Open TrueSkill Bot is superior."));
+        }
+
+        [Command("decipher")]
+        [Summary("Deciphers a message. (Easter Egg)")]
+        public Task DecipherCommand([Summary("The string to decipher.")] [Remainder] string toDecipher) {
+            return ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Failed to decipher the message." +  
+            Environment.NewLine + Environment.NewLine +
+            "**Most Likely Cause:**" + Environment.NewLine  + "The message was composed by Cistic."));
         }
 
         [RequireUserPermission(GuildPermission.ManageGuild)]
@@ -103,7 +119,7 @@ namespace OpenTrueskillBot.BotCommands
                 foreach (var cmd in module.Commands)
                 {
                     PreconditionResult result = cmd.CheckPreconditionsAsync(Context).Result;
-                    if (result.IsSuccess)
+                    if (result.IsSuccess && !cmd.Summary.Contains("(Easter Egg)"))
                         description += $"**{prefix}{cmd.Name}**: _{cmd.Summary}_\n";
                 }
                 
@@ -121,14 +137,17 @@ namespace OpenTrueskillBot.BotCommands
             return ReplyAsync("", false, builder.Build());
         }
 
-        public static string GenerteHelpText(string command) {
-            var result = Program.DiscordIO.Commands.Search(command);string prefix = Program.prefix.ToString();
+        public static string GenerateHelpText(string command) {
+            var result = Program.DiscordIO.Commands.Search(command);
+            string prefix = Program.prefix.ToString();
 
             var sb = new StringBuilder();
 
             foreach (var match in result.Commands)
             {
                 var cmd = match.Command;
+
+                if (cmd.Summary.Contains("(Easter Egg)")) continue;
 
                 sb.Append("**" + prefix + cmd.Name + "** (Aliases: !" + string.Join(", !", cmd.Aliases) + ")" + Environment.NewLine);
                 if (cmd.Parameters.Count != 0) {
@@ -148,6 +167,7 @@ namespace OpenTrueskillBot.BotCommands
         public Task HelpCommand([Summary("The command to search for.")]string query)
         {
             var result = Program.DiscordIO.Commands.Search(Context, query);
+            var result_ = result.Commands.Where(c => !c.Command.Summary.Contains("(Easter Egg)")).ToList();
 
             if (!result.IsSuccess)
             {
@@ -158,10 +178,10 @@ namespace OpenTrueskillBot.BotCommands
             var builder = new EmbedBuilder()
             {
                 Color = new Color(114, 137, 218),
-                Description = $"Found **{result.Commands.Count}** command(s):"
+                Description = $"Found **{result_.Count}** command(s):"
             };
 
-            foreach (var match in result.Commands)
+            foreach (var match in result_)
             {
                 var cmd = match.Command;
 

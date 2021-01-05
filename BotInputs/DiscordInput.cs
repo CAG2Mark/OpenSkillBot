@@ -58,6 +58,10 @@ namespace OpenTrueskillBot.BotInputs
                 this.IsReady = true;
                 await Log(new LogMessage(LogSeverity.Info, "Program",
                     $"Bot started. Initialisation time was {Program.InitTime}ms"));
+
+                while (LogQueue.Count > 0) {
+                    await SendLog();
+                }
             };
 
             client.UserJoined += (user) => {
@@ -92,11 +96,14 @@ namespace OpenTrueskillBot.BotInputs
 
         }
 
-        public async Task Log(LogMessage msg)
-        {
+        Queue<Tuple<LogMessage, DateTime>> LogQueue = new Queue<Tuple<LogMessage, DateTime>>();
 
-            Console.WriteLine(msg.ToString());
-            
+        public async Task SendLog() {
+            if (LogQueue.Count == 0) return;
+
+            var val = LogQueue.Peek();
+            var msg = val.Item1;
+
             if (client.ConnectionState == ConnectionState.Connected && Program.Config.LogsChannelId != 0) {
                 try {
                     var channel = this.GetChannel(Program.Config.LogsChannelId);
@@ -124,22 +131,27 @@ namespace OpenTrueskillBot.BotInputs
                     var embed = new EmbedBuilder()
                         .WithColor(color)
                         .WithFooter(msg.Severity.ToString())
-                        .WithTimestamp(DateTime.UtcNow);
+                        .WithTimestamp(val.Item2);
                     embed.Description = "**" + msg.Source + "**: " + msg.Message;
 
                     await SendMessage("", channel, embed.Build());
                 }
                 catch (Exception) {
-                    Console.WriteLine("Warning: Could not write to Discord logs channel!");
+                    Console.WriteLine("Warning: Could not write to Discord logs channel! Queuing.");
+                    return;
                 }
+                LogQueue.Dequeue();
             }
-
         }
 
-        // Task when message is received on Discord
-        private async Task MessageReceived(SocketMessage arg) {
+        public async Task Log(LogMessage msg)
+        {
+            Console.WriteLine(msg.ToString());
+            LogQueue.Enqueue(new Tuple<LogMessage, DateTime>(msg, DateTime.UtcNow));
 
+            await SendLog();
         }
+
 
         public async Task<RestUserMessage> SendMessage(string message, ISocketMessageChannel channel, Embed embed = null) {
             // sends the message and returns it

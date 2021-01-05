@@ -91,17 +91,16 @@ namespace OpenTrueskillBot
         }
 
         public bool SerializeActions() {
-            try
-            {
+            try {
                 SerializeHelper.Serialize(LatestAction, ahFileName);
                 return true;
             }
-            catch (System.Exception)
-            {
+            catch (System.Exception) {
                 Console.WriteLine("WARNING: Failed to save action history!");
                 return false;
             }
         }
+
 
         public async Task<MatchAction> AddMatchAction(Team team1, Team team2, int result) {
             // swap if result is 2

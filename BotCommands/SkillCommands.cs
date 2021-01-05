@@ -75,32 +75,68 @@ namespace OpenTrueskillBot.BotCommands
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Removed the rank **{rankName}**"));
         }
 
+        [Command("viewranks")]
+        [Summary("Displays a list of all the rank and their boundaries.")]
+        public async Task ViewRanks() {
+            var sb = new StringBuilder();
+            foreach (var r in Program.Config.Ranks) {
+                sb.Append($"**{r.Name}** - {r.LowerBound}+{Environment.NewLine}");
+            }
+
+            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(sb.ToString()));
+        }
+
+
         [Command("refreshrank")]
-        [Summary("Refreshes the rank of all players.")]
-        public async Task RefreshRankCommand() {
+        [Summary("Refreshes the rank of all players, or a specific list of players.")]
+        public async Task RefreshRankCommand([Summary("A comma separated list of the players to update.")] string players) {
 
             var channel = Context.Channel;
-
-            var total = Program.CurLeaderboard.Players.Count;
 
             var msg = await Program.DiscordIO.SendMessage("", channel, 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Initialising..."));
 
+            List<Player> playersList;
+
+            if (string.IsNullOrEmpty(players)) {
+                playersList = Program.CurLeaderboard.Players;
+            }
+            else {
+                playersList = new List<Player>();
+
+                players = players.Replace(" ", "");
+                var playersSpl = players.Split(',');
+
+                foreach (var p in playersSpl) {
+                    var player = Program.CurLeaderboard.FuzzySearch(p);
+                    if (player == null) {
+                        await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the player **{p}**."));
+                        return;
+                    }
+                    playersList.Add(player);
+                }
+            }
+
+            var total = playersList.Count;
+
             int i = 0;
-            foreach (var p in Program.CurLeaderboard.Players) {
+            foreach (var p in playersList) {
                 var percent = ++i * 100 / total;
                 await Program.DiscordIO.EditMessage(msg, "", 
                     EmbedHelper.GenerateInfoEmbed(
                         $":arrows_counterclockwise: Processing {p.IGN} {Environment.NewLine}{Environment.NewLine} {i} of {total} players processed ({percent}%)"));
-                await p.UpdateRank(true);
+                p.QueueRankRefresh(true);
+                await Task.Delay(100);
             }
 
             await msg.DeleteAsync();
 
             Program.CurLeaderboard.InvokeChange();
             
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Refreshed the ranks of {Program.CurLeaderboard.Players.Count} players."));
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Refreshed the ranks of {playersList.Count} players."));
         }
+
+
 
         [Command("resetleaderboard")]
         [Summary("Resets the leaderboard.")]

@@ -17,7 +17,7 @@ namespace OpenTrueskillBot.Skill
         /// The player's unique identifier.
         /// </summary>
         /// <value></value>
-        public string UUId { get; set; }
+        public string UUId { get; private set; }
 
         /// <summary>
         /// The player's IGN.
@@ -48,7 +48,9 @@ namespace OpenTrueskillBot.Skill
                 if (sigma <= 0) throw new ArithmeticException("The standard deviation of a player cannot be less than or equal to zero.");
                 sigma = value;
 
-                QueueRankRefresh();
+                if (!refreshingRank) QueueRankRefresh();
+
+                Console.WriteLine("Sigma of " + IGN + " set to " + value);
             }
         }
         /// <summary>
@@ -60,7 +62,8 @@ namespace OpenTrueskillBot.Skill
             set
             {
                 mu = value;
-                QueueRankRefresh();
+                if (!refreshingRank) QueueRankRefresh();
+                Console.WriteLine("Mu of " + IGN + " set to " + value);
             }
         }
 
@@ -74,6 +77,9 @@ namespace OpenTrueskillBot.Skill
             rankRefreshTimer.Elapsed += async (o, e) =>
             {
                 if (rankRefreshQueued) {
+                    // makes sure any updates to the player's skill at the immediate moment
+                    // come through before the rank is refreshed
+                    await Task.Delay(100);
                     await UpdateRank(hardRefreshQueued);
                     hardRefreshQueued = false;
                     rankRefreshQueued = false;
@@ -113,7 +119,9 @@ namespace OpenTrueskillBot.Skill
         } 
 
 
-        public Rank PlayerRank { get; set; } = null;
+        public Rank PlayerRank { get; private set; } = null;
+
+        private bool refreshingRank;
 
         /// <summary>
         /// Gets the current rank of the player.
@@ -121,24 +129,40 @@ namespace OpenTrueskillBot.Skill
         /// <value>The rank of the player, or null if not found.</value>
         public async Task UpdateRank(bool hardRefresh = false)
         {
-            if (Program.Config.Ranks == null || Program.Config.Ranks.Count == 0) return;
+            if (refreshingRank) return;
+
+            refreshingRank = true;
+            if (Program.Config.Ranks == null || Program.Config.Ranks.Count == 0) {
+                refreshingRank = false;
+                return;
+            }
 
             var oldRank = this.PlayerRank;
             RefreshRank();
 
-            if (this.discordId == 0 || !Program.DiscordIO.IsReady) return;
+            if (this.discordId == 0 || !Program.DiscordIO.IsReady) {
+                refreshingRank = false;
+                return;
+            }
             
             if (oldRank == null || !oldRank.Equals(this.PlayerRank) || hardRefresh) {
                 // check if the player exists
                 var player = Program.DiscordIO.GetUser(this.DiscordId);
-                if (player == null) return;
+                if (player == null) {
+                    refreshingRank = false;
+                    return;
+                }
 
                 try {
                     if (oldRank != null && !hardRefresh)
                         await Program.DiscordIO.RemoveRole(player, oldRank.RoleId);
                 }
-                catch (Exception) {
-                    // todo: log error
+                catch (Exception ex) {
+                    await Program.DiscordIO.Log(new Discord.LogMessage(
+                        Discord.LogSeverity.Warning,
+                        "Program",
+                        ex.Message
+                    ));
                 }
 
                 try {
@@ -147,18 +171,28 @@ namespace OpenTrueskillBot.Skill
                         await Program.DiscordIO.RemoveRoles(player, Program.Config.Ranks.Select(o => o.RoleId));
                     }
                 }
-                catch (Exception) {
-
+                catch (Exception ex) {
+                    await Program.DiscordIO.Log(new Discord.LogMessage(
+                        Discord.LogSeverity.Warning,
+                        "Program",
+                        ex.Message
+                    ));
                 }
                 try {
                     if (this.PlayerRank != null)
                         await Program.DiscordIO.AddRole(player, PlayerRank.RoleId);
                 }
-                catch (Exception) {
+                catch (Exception ex) {
+                    await Program.DiscordIO.Log(new Discord.LogMessage(
+                        Discord.LogSeverity.Warning,
+                        "Program",
+                        ex.Message
+                    ));
                 }
             }
 
-
+            Console.WriteLine("Refreshed the rank of " + IGN);
+            refreshingRank = false;
         }
 
         // Use when creating a new player

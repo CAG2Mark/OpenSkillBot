@@ -73,7 +73,7 @@ namespace OpenTrueskillBot.BotInputs
             if (!result.IsSuccess) {
                 if (result.Error.Equals(CommandError.BadArgCount) || result.Error.Equals(CommandError.ParseFailed)) {
                     var cmd = message.Content.Replace(Program.prefix.ToString(), "").Split(" ")[0];
-                    await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateInfoEmbed(BasicCommands.GenerteHelpText(cmd)));
+                    await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateInfoEmbed(BasicCommands.GenerateHelpText(cmd)));
                     return;
                 }
                 await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateErrorEmbed(result.ErrorReason));
