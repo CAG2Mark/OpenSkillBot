@@ -46,6 +46,70 @@ namespace OpenTrueskillBot.BotCommands
             }
         }
 
+        [RequirePermittedRole]
+        [Command("insertmatch")]
+        [Summary("Inserts a match **before** a specified match and recalculates the following matches.")]
+        public async Task InsertMatchCommand([Summary("The match that will follow the match to be inserted.")] string id, [Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
+            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
+
+            // this code is to find the match to insert before
+
+            MatchAction match;
+            int depth;
+
+            // special case
+            if (Program.Controller.LatestAction.ActionId.Equals(id)) {
+                match = Program.Controller.LatestAction;
+                depth = 1;
+            }
+            else {
+                // find the match
+                var matchTuple = Program.Controller.LatestAction.FindMatch(id);
+                match = matchTuple.Item1;
+                depth = matchTuple.Item2 + 1;
+
+                if (match == null) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
+                        ));
+                    return;
+                }
+            }
+
+            // Create the match.
+
+                Team t1;
+                Team t2;
+                try {
+                    t1 = strToTeam(team1);
+                    t2 = strToTeam(team2);
+                }
+                catch (Exception e) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                    return;
+                }
+
+                var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
+                var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
+
+                MatchAction action = new MatchAction(t1, t2, result == 0);
+
+                await match.InsertBefore(action);
+
+                string output = $"The match between **{t1_s}** and **{t2_s}** has been calculated." + 
+                        Environment.NewLine + Environment.NewLine +
+                        $"**{depth}** subsequent match{(depth == 1 ? "" : "es")} were re-calculated.";
+
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output));
+                
+            try {
+
+            }
+            catch (Exception e) {
+                await ReplyAsync(e.Message);
+            }
+        }
+    
+
         [Command("addrank")]
         [Summary("Adds a new player rank. If you want ranks to be updated, you must run !refreshrank after this.")]
         public Task AddRankCommand([Summary("The minimum skill to be in this rank.")] int lowerBound, 
@@ -167,6 +231,8 @@ namespace OpenTrueskillBot.BotCommands
             sb.Append($"**The following {(count == 1 ? "match was" : "matches were")} undone:**{Environment.NewLine}{Environment.NewLine}");
             for (int i = 0; i < count; ++i) {
                 var match = await Program.Controller.UndoAction();
+                if (match == null) break;
+
                 var winnerText = string.Join(", ", match.Winner.Players.Select(x => x.IGN));
                 var loserText = string.Join(", ", match.Loser.Players.Select(x => x.IGN));
                 sb.Append($"**{winnerText}** vs **{loserText}**{Environment.NewLine}");
@@ -184,10 +250,15 @@ namespace OpenTrueskillBot.BotCommands
                 await UndoCommand(1);
                 return;
             }
-
             // find the match
             var matchTuple = Program.Controller.LatestAction.FindMatch(id);
             var match = matchTuple.Item1;
+
+            if (match == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."));
+                return;
+            }
+
             await match.Undo();
 
             StringBuilder sb = new StringBuilder();

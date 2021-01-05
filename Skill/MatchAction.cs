@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using Moserware.Skills;
 using Moserware.Skills.TrueSkill;
 using System;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Discord.Rest;
 using Newtonsoft.Json;
@@ -28,10 +27,7 @@ namespace OpenTrueskillBot.Skill
         public Team Loser { get; set; }
         public bool IsDraw { get; set; }
         
-        protected async Task action()
-        {
-            TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
-            
+        private async Task sendMessage() {
             if (Program.Config.HistoryChannelId == 0) return;
 
             // generate message
@@ -44,6 +40,12 @@ namespace OpenTrueskillBot.Skill
                 var msg = (RestUserMessage)await chnl.GetMessageAsync(this.discordMessageId);
                 await Program.DiscordIO.EditMessage(msg, "", embed);
             }
+        }
+        protected async Task action()
+        {
+            TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
+
+            await sendMessage();
         }
 
         protected void undoAction()
@@ -58,19 +60,24 @@ namespace OpenTrueskillBot.Skill
             this.Winner = winner;
             this.Loser = loser;
             this.IsDraw = isDraw;
+        }
 
-            foreach (var p in winner.Players) {
+        private void setOldPlayerDatas() {
+
+            oldPlayerDatas = new List<OldPlayerData>();
+
+            foreach (var p in Winner.Players) {
                 oldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId});
             }
-            foreach (var p in loser.Players) {
+            foreach (var p in Loser.Players) {
                 oldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId});
             }
         }
 
         // empty ctor for serialisation purposes
         public MatchAction() {
-            ActionTime = DateTime.UtcNow;
-            this.ActionId = Player.RandomString(16);
+            //ActionTime = DateTime.UtcNow;
+            //this.ActionId = Player.RandomString(16);
         }
 
         #region copied from botaction class
@@ -85,26 +92,28 @@ namespace OpenTrueskillBot.Skill
         public MatchAction NextAction { get; set; }
         public MatchAction PrevAction { get; set; }
 
+        [JsonProperty]
         public string ActionId { get; private set; }
 
         [JsonProperty]
         private ulong discordMessageId { get; set; } = 0;
 
-        public async Task DoAction()
+        public async Task DoAction(bool invokeChange = true)
         {
+            setOldPlayerDatas();
             await action();
-            Program.CurLeaderboard.InvokeChange();
+            if (invokeChange) Program.CurLeaderboard.InvokeChange();
         }
 
 
-        private void mergeAllOld()
+        private void mergeForwardOld()
         {
             Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
         }
 
         public async Task Undo()
         {
-            mergeAllOld();
+            mergeForwardOld();
             // undoAction() just does extra things that may not be covered by the default one
             undoAction();
 
@@ -112,10 +121,6 @@ namespace OpenTrueskillBot.Skill
             if (NextAction != null)
             {
                 await NextAction.ReCalculateNext();
-            }
-            else
-            {
-                Program.CurLeaderboard.InvokeChange();
             }
 
             // Unlink this node
@@ -132,31 +137,49 @@ namespace OpenTrueskillBot.Skill
 
             Program.Controller.SerializeActions();
 
-            if (Program.Config.HistoryChannelId == 0 || this.discordMessageId == 0) return;
-            // delete message
-            var msg = (RestUserMessage) await Program.DiscordIO.GetMessage(this.discordMessageId, Program.Config.HistoryChannelId);
-            if (msg != null)
-                await msg.DeleteAsync();
+            Program.CurLeaderboard.InvokeChange();
+
+            await deleteMessage();
         }
 
         public async Task InsertAfter(MatchAction action)
         {
             if (this.NextAction != null)
             {
-                this.NextAction.mergeAllOld();
-            }
-            else
-            {
-
+                this.NextAction.mergeForwardOld();
             }
 
             action.NextAction = this.NextAction;
             action.PrevAction = this;
             this.NextAction = action;
 
-            await action.ReCalculateNext();
+            await action.ReCalculateAndReSend();
 
+            Program.CurLeaderboard.InvokeChange();
             Program.Controller.SerializeActions();
+        }
+
+        public async Task InsertBefore(MatchAction action) {
+            action.PrevAction = this.PrevAction;
+            this.PrevAction = action;
+            action.NextAction = this;
+
+            this.mergeForwardOld();
+
+            await action.ReCalculateAndReSend();
+
+            Program.CurLeaderboard.InvokeChange();
+            Program.Controller.SerializeActions();
+        }
+
+        private async Task deleteMessage() {
+            if (Program.Config.HistoryChannelId == 0 || this.discordMessageId == 0) return;
+            // delete message
+            var msg = (RestUserMessage) await Program.DiscordIO.GetMessage(this.discordMessageId, Program.Config.HistoryChannelId);
+            if (msg != null) {
+                this.discordMessageId = 0;
+                await msg.DeleteAsync();
+            }
         }
 
         #region Recursive functions
@@ -164,18 +187,30 @@ namespace OpenTrueskillBot.Skill
         public Tuple<MatchAction, int> FindMatch(string id, int depth = 1) {
             // goes backwards
             if (this.ActionId.Equals(id)) return new Tuple<MatchAction, int>(this, depth);
-            else return this.PrevAction.FindMatch(id, depth + 1);
+            else {
+                if (PrevAction != null) return this.PrevAction.FindMatch(id, depth + 1);
+                else return new Tuple<MatchAction, int>(null, depth);
+            } 
         }
 
+
+        public async Task ReCalculateAndReSend() {
+            await deleteMessage();
+            await DoAction(false);
+            if (this.NextAction != null)
+            {
+                await this.NextAction.ReCalculateAndReSend();
+            }
+        }
         public async Task ReCalculateNext()
         {
-
-            await DoAction();
+            await DoAction(false);
 
             if (this.NextAction != null)
             {
                 await this.NextAction.ReCalculateNext();
             }
+
         }
 
         /// <summary>

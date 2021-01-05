@@ -167,12 +167,13 @@ namespace OpenTrueskillBot.BotCommands
         public Task HelpCommand([Summary("The command to search for.")]string query)
         {
             var result = Program.DiscordIO.Commands.Search(Context, query);
-            var result_ = result.Commands.Where(c => !c.Command.Summary.Contains("(Easter Egg)")).ToList();
 
             if (!result.IsSuccess)
             {
-                return ReplyAsync($"Could not find the command **{query}**.");
+                return ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the command **{query}**."));
             }
+
+            var result_ = result.Commands.Where(c => !c.Command.Summary.Contains("(Easter Egg)")).ToList();
 
             string prefix = Program.prefix.ToString();
             var builder = new EmbedBuilder()

@@ -13,6 +13,7 @@ namespace OpenTrueskillBot.Skill
     public class Player
     {
 
+        [JsonProperty]
         /// <summary>
         /// The player's unique identifier.
         /// </summary>

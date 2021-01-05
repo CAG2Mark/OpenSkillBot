@@ -88,6 +88,7 @@ namespace OpenTrueskillBot.Skill
                 found.Sigma = old.Sigma;
                 found.Mu = old.Mu;
             }
+            InvokeChange();
         }
 
         public async Task Reset() {

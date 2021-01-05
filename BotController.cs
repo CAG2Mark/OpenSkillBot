@@ -129,6 +129,8 @@ namespace OpenTrueskillBot
         }
 
         public async Task<MatchAction> UndoAction() {
+            if (LatestAction == null) return null;
+            
             var action = LatestAction;
             await action.Undo();
             LatestAction = action.PrevAction;
