@@ -22,7 +22,7 @@ namespace OpenTrueskillBot.Skill
             StringBuilder rankChanges = new StringBuilder();
 
             // Skill and rank changes
-            foreach(var o in action.oldPlayerDatas) {
+            foreach(var o in action.OldPlayerDatas) {
                 var uuid = o.UUId;
 
                 var oldRank = Player.GetRank(o.Mu, o.Sigma);

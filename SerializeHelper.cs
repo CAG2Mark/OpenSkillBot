@@ -6,7 +6,10 @@ namespace OpenTrueskillBot
     public static class SerializeHelper
     {
 
-        static JsonSerializerSettings jsSettings = new JsonSerializerSettings() { ReferenceLoopHandling = ReferenceLoopHandling.Ignore };
+        static JsonSerializerSettings jsSettings = new JsonSerializerSettings() { 
+            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+            PreserveReferencesHandling = PreserveReferencesHandling.All 
+            };
 
         public static void Serialize(object obj, string fileName) {
             string json = JsonConvert.SerializeObject(obj, jsSettings);

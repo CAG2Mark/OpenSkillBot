@@ -119,7 +119,6 @@ namespace OpenTrueskillBot.Skill
             this.PlayerRank = GetRank(DisplayedSkill);
         } 
 
-
         public Rank PlayerRank { get; private set; } = null;
 
         private bool refreshingRank;
@@ -267,7 +266,7 @@ namespace OpenTrueskillBot.Skill
         // override object.GetHashCode
         public override int GetHashCode()
         {
-            return this.UUId.GetHashCode() * 17 + this.DiscordId.GetHashCode() + this.Sigma.GetHashCode() + this.Mu.GetHashCode();
+            return this.UUId.GetHashCode() + this.DiscordId.GetHashCode() + this.Sigma.GetHashCode() + this.Mu.GetHashCode();
         }
 
     }

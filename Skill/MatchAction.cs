@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Moserware.Skills;
 using Moserware.Skills.TrueSkill;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Discord.Rest;
 using Newtonsoft.Json;
@@ -10,8 +11,8 @@ using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 namespace OpenTrueskillBot.Skill
 {
 
-    public struct Team {
-        public List<Player> Players;
+    public class Team {
+        public List<Player> Players = new List<Player>();
     }
 
 
@@ -23,20 +24,59 @@ namespace OpenTrueskillBot.Skill
 
     public class MatchAction
     {
-        public Team Winner { get; set; }
-        public Team Loser { get; set; }
+        [JsonIgnoreAttribute]
+        public Team Winner { 
+            get {
+                if (winner == null)
+                {
+                    winner = new Team();
+                    foreach (var uuid in winnerUUIDs)
+                    {
+                        winner.Players.Add(Program.CurLeaderboard.Players.First(p => p.UUId.Equals(uuid)));
+                    }
+                }
+                return winner;
+            }
+            set => winner = value; 
+        }
+
+        [JsonProperty]
+        private IEnumerable<string> winnerUUIDs = new List<string>();
+
+        [JsonIgnoreAttribute]
+        public Team Loser { 
+            get {
+                if (loser == null)
+                {
+                    loser = new Team();
+                    foreach (var uuid in loserUUIds)
+                    {
+                        loser.Players.Add(Program.CurLeaderboard.Players.First(p => p.UUId.Equals(uuid)));
+                    }
+                }
+                return loser;
+            }
+            set => loser = value; 
+        }
+
+        [JsonProperty]
+        private IEnumerable<string> loserUUIds = new List<string>();
+
         public bool IsDraw { get; set; }
-        
-        private async Task sendMessage() {
+
+        private async Task sendMessage()
+        {
             if (Program.Config.HistoryChannelId == 0) return;
 
             // generate message
             var embed = MessageGenerator.MakeMatchMessage(this, this.IsDraw);
             var chnl = Program.DiscordIO.GetChannel(Program.Config.HistoryChannelId);
-            if (this.discordMessageId == 0) {
+            if (this.discordMessageId == 0)
+            {
                 this.discordMessageId = (await Program.DiscordIO.SendMessage("", chnl, embed)).Id;
             }
-            else {
+            else
+            {
                 var msg = (RestUserMessage)await chnl.GetMessageAsync(this.discordMessageId);
                 await Program.DiscordIO.EditMessage(msg, "", embed);
             }
@@ -44,7 +84,6 @@ namespace OpenTrueskillBot.Skill
         protected async Task action()
         {
             TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
-
             await sendMessage();
         }
 
@@ -53,40 +92,52 @@ namespace OpenTrueskillBot.Skill
         }
 
         // Currently only supports matches between two teams
-        public MatchAction(Team winner, Team loser, bool isDraw = false) : base() {
+        public MatchAction(Team winner, Team loser, bool isDraw = false)
+        {
             ActionTime = DateTime.UtcNow;
             this.ActionId = Player.RandomString(16);
 
             this.Winner = winner;
             this.Loser = loser;
             this.IsDraw = isDraw;
+
+            this.winnerUUIDs = winner.Players.Select(p => p.UUId);
+            this.loserUUIds = loser.Players.Select(p => p.UUId);
+
+            setOldPlayerDatas();
         }
 
-        private void setOldPlayerDatas() {
+        private void setOldPlayerDatas()
+        {
 
-            oldPlayerDatas = new List<OldPlayerData>();
+            OldPlayerDatas = new List<OldPlayerData>();
 
-            foreach (var p in Winner.Players) {
-                oldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId});
+            foreach (var p in Winner.Players)
+            {
+                OldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId });
             }
-            foreach (var p in Loser.Players) {
-                oldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId});
+            foreach (var p in Loser.Players)
+            {
+                OldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId });
             }
         }
 
         // empty ctor for serialisation purposes
-        public MatchAction() {
+        public MatchAction()
+        {
             //ActionTime = DateTime.UtcNow;
             //this.ActionId = Player.RandomString(16);
         }
 
         #region copied from botaction class
 
-        public List<OldPlayerData> oldPlayerDatas = new List<OldPlayerData>();
+        public List<OldPlayerData> OldPlayerDatas = new List<OldPlayerData>();
 
         public DateTime ActionTime;
+        private Team winner;
+        private Team loser;
 
-        
+
         // Dont serialise this to avoid infinite recursion. Instead, repopulate on deserialization.
         [JsonIgnore]
         public MatchAction NextAction { get; set; }
@@ -109,6 +160,7 @@ namespace OpenTrueskillBot.Skill
         private void mergeForwardOld()
         {
             Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
+            Console.WriteLine("Merged old data");
         }
 
         public async Task Undo()
@@ -159,10 +211,11 @@ namespace OpenTrueskillBot.Skill
             Program.Controller.SerializeActions();
         }
 
-        public async Task InsertBefore(MatchAction action) {
+        public async Task InsertBefore(MatchAction action)
+        {
             action.PrevAction = this.PrevAction;
-            this.PrevAction = action;
             action.NextAction = this;
+            this.PrevAction = action;
 
             this.mergeForwardOld();
 
@@ -172,11 +225,13 @@ namespace OpenTrueskillBot.Skill
             Program.Controller.SerializeActions();
         }
 
-        private async Task deleteMessage() {
+        private async Task deleteMessage()
+        {
             if (Program.Config.HistoryChannelId == 0 || this.discordMessageId == 0) return;
             // delete message
-            var msg = (RestUserMessage) await Program.DiscordIO.GetMessage(this.discordMessageId, Program.Config.HistoryChannelId);
-            if (msg != null) {
+            var msg = (RestUserMessage)await Program.DiscordIO.GetMessage(this.discordMessageId, Program.Config.HistoryChannelId);
+            if (msg != null)
+            {
                 this.discordMessageId = 0;
                 await msg.DeleteAsync();
             }
@@ -184,17 +239,20 @@ namespace OpenTrueskillBot.Skill
 
         #region Recursive functions
 
-        public Tuple<MatchAction, int> FindMatch(string id, int depth = 1) {
+        public Tuple<MatchAction, int> FindMatch(string id, int depth = 1)
+        {
             // goes backwards
             if (this.ActionId.Equals(id)) return new Tuple<MatchAction, int>(this, depth);
-            else {
+            else
+            {
                 if (PrevAction != null) return this.PrevAction.FindMatch(id, depth + 1);
                 else return new Tuple<MatchAction, int>(null, depth);
-            } 
+            }
         }
 
 
-        public async Task ReCalculateAndReSend() {
+        public async Task ReCalculateAndReSend()
+        {
             await deleteMessage();
             await DoAction(false);
             if (this.NextAction != null)
@@ -233,20 +291,22 @@ namespace OpenTrueskillBot.Skill
 
             // remove the later old player datas
             // because we want the one closest to the start
-            foreach (var oldPlayerData in oldPlayerDatas)
+            foreach (var oldPlayerData in OldPlayerDatas)
             {
                 cumulative.RemoveAll(o => o.UUId.Equals(oldPlayerData.UUId));
             }
 
-            cumulative.AddRange(oldPlayerDatas);
+            cumulative.AddRange(OldPlayerDatas);
 
             return cumulative;
         }
 
         #endregion
-        
-        public void RepopulateLinks() {
-            if (this.PrevAction != null) {
+
+        public void RepopulateLinks()
+        {
+            if (this.PrevAction != null)
+            {
                 PrevAction.NextAction = this;
                 PrevAction.RepopulateLinks();
             }
@@ -263,15 +323,15 @@ namespace OpenTrueskillBot.Skill
             // and also the guidance for operator== at
             //   http://go.microsoft.com/fwlink/?LinkId=85238
             //
-            
+
             if (obj == null || GetType() != obj.GetType())
             {
                 return false;
             }
-            
+
             return this.ActionId.Equals(((MatchAction)obj).ActionId);
         }
-        
+
         // override object.GetHashCode
         public override int GetHashCode()
         {

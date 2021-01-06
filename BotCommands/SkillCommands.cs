@@ -66,7 +66,7 @@ namespace OpenTrueskillBot.BotCommands
                 // find the match
                 var matchTuple = Program.Controller.LatestAction.FindMatch(id);
                 match = matchTuple.Item1;
-                depth = matchTuple.Item2 + 1;
+                depth = matchTuple.Item2;
 
                 if (match == null) {
                     await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
@@ -100,7 +100,7 @@ namespace OpenTrueskillBot.BotCommands
                         $"**{depth}** subsequent match{(depth == 1 ? "" : "es")} were re-calculated.";
 
                 await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output));
-                
+
             try {
 
             }
@@ -153,7 +153,7 @@ namespace OpenTrueskillBot.BotCommands
 
         [Command("refreshrank")]
         [Summary("Refreshes the rank of all players, or a specific list of players.")]
-        public async Task RefreshRankCommand([Summary("A comma separated list of the players to update.")] string players) {
+        public async Task RefreshRankCommand([Summary("A comma separated list of the players to update.")] string players = null) {
 
             var channel = Context.Channel;
 
@@ -190,6 +190,7 @@ namespace OpenTrueskillBot.BotCommands
                     EmbedHelper.GenerateInfoEmbed(
                         $":arrows_counterclockwise: Processing {p.IGN} {Environment.NewLine}{Environment.NewLine} {i} of {total} players processed ({percent}%)"));
                 p.QueueRankRefresh(true);
+                // don't spam the api
                 await Task.Delay(100);
             }
 
