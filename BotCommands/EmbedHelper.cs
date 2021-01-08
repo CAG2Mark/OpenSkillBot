@@ -6,11 +6,15 @@ using System.Text;
 namespace OpenTrueskillBot.BotCommands {
     public static class EmbedHelper {
 
-        public static Embed GenerateSuccessEmbed(string text) {
+        public static Embed GenerateSuccessEmbed(string text, string footer = null) {
             var builder = new EmbedBuilder() {
                 Color = new Color(28, 189, 71),
             };
             builder.Description = $":white_check_mark: {text}";
+            builder.WithCurrentTimestamp();
+            if (footer != null) {
+                builder.WithFooter(footer);
+            }
             return builder.Build();
         }
 

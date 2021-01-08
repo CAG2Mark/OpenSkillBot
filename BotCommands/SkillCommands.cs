@@ -35,11 +35,11 @@ namespace OpenTrueskillBot.BotCommands
                 var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
                 var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
 
-                await Program.Controller.AddMatchAction(t1, t2, result);
+                var match = await Program.Controller.AddMatchAction(t1, t2, result);
 
                 string output = $"The match between **{t1_s}** and **{t2_s}** has been calculated.";
 
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output));
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {match.ActionId}"));
             }
             catch (Exception e) {
                 await ReplyAsync(e.Message);
@@ -53,6 +53,10 @@ namespace OpenTrueskillBot.BotCommands
             [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
 
             // this code is to find the match to insert before
+
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Finding the match **{id}**..."));
 
             MatchAction match;
             int depth;
@@ -69,14 +73,20 @@ namespace OpenTrueskillBot.BotCommands
                 depth = matchTuple.Item2;
 
                 if (match == null) {
+                    await msg.DeleteAsync();
                     await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
                         ));
                     return;
                 }
             }
 
-            // Create the match.
+            await Program.DiscordIO.EditMessage(msg, "", 
+                EmbedHelper.GenerateInfoEmbed(
+                $":arrows_counterclockwise: Calculating the match and re-calculating subsequent matches... (this might take a while)"));
 
+
+            try {
+                // Create the match.
                 Team t1;
                 Team t2;
                 try {
@@ -84,6 +94,7 @@ namespace OpenTrueskillBot.BotCommands
                     t2 = strToTeam(team2);
                 }
                 catch (Exception e) {
+                    await msg.DeleteAsync();
                     await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
                     return;
                 }
@@ -91,20 +102,21 @@ namespace OpenTrueskillBot.BotCommands
                 var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
                 var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
 
-                MatchAction action = new MatchAction(t1, t2, result == 0);
+                MatchAction newMatch = new MatchAction(t1, t2, result == 0);
 
-                await match.InsertBefore(action);
+                // Insert the new match before the specified match
+                await match.InsertBefore(newMatch);
 
+                // Output it
                 string output = $"The match between **{t1_s}** and **{t2_s}** has been calculated." + 
                         Environment.NewLine + Environment.NewLine +
-                        $"**{depth}** subsequent match{(depth == 1 ? "" : "es")} were re-calculated.";
+                        $"**{depth}** subsequent match{(depth == 1 ? " was" : "es were")} re-calculated.";
 
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output));
-
-            try {
-
+                await msg.DeleteAsync();
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {newMatch.ActionId}"));
             }
             catch (Exception e) {
+                await msg.DeleteAsync();
                 await ReplyAsync(e.Message);
             }
         }
@@ -150,10 +162,10 @@ namespace OpenTrueskillBot.BotCommands
             await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(sb.ToString()));
         }
 
-
-        [Command("refreshrank")]
+        
+        [Command("refreshrank", RunMode = RunMode.Async)]
         [Summary("Refreshes the rank of all players, or a specific list of players.")]
-        public async Task RefreshRankCommand([Summary("A comma separated list of the players to update.")] string players = null) {
+        public async Task RefreshRankCommand([Summary("A comma separated list of the players to update.")] string players = "all") {
 
             var channel = Context.Channel;
 
@@ -162,7 +174,7 @@ namespace OpenTrueskillBot.BotCommands
 
             List<Player> playersList;
 
-            if (string.IsNullOrEmpty(players)) {
+            if (players.Equals("all")) {
                 playersList = Program.CurLeaderboard.Players;
             }
             else {
@@ -204,7 +216,7 @@ namespace OpenTrueskillBot.BotCommands
 
 
         [Command("resetleaderboard")]
-        [Summary("Resets the leaderboard.")]
+        [Summary("Resets the leaderboard. Requires a token for safety. If no token is provided, one is generated and you must re-type the command with the token.")]
         public async Task ResetLeaderboardCommand([Summary("The provided reset token.")]string token = null) {
             if (string.IsNullOrEmpty(token)) {
                 await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Please type **{Program.prefix}resetleaderboard** `{Program.Controller.GenerateResetToken()}` to confirm this action."));
@@ -228,9 +240,17 @@ namespace OpenTrueskillBot.BotCommands
                 return;
             }
 
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Initialising..."));
+
             StringBuilder sb = new StringBuilder();
             sb.Append($"**The following {(count == 1 ? "match was" : "matches were")} undone:**{Environment.NewLine}{Environment.NewLine}");
             for (int i = 0; i < count; ++i) {
+
+                await Program.DiscordIO.EditMessage(msg, "",
+                    EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Undoing match {i + 1} of {count}..."));
+
                 var match = await Program.Controller.UndoAction();
                 if (match == null) break;
 
@@ -238,6 +258,8 @@ namespace OpenTrueskillBot.BotCommands
                 var loserText = string.Join(", ", match.Loser.Players.Select(x => x.IGN));
                 sb.Append($"**{winnerText}** vs **{loserText}**{Environment.NewLine}");
             }
+
+            await msg.DeleteAsync();
             
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
         }
@@ -260,6 +282,10 @@ namespace OpenTrueskillBot.BotCommands
                 return;
             }
 
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Undoing match and re-calculating subsequent matches... (this might take a while)"));
+
             await match.Undo();
 
             StringBuilder sb = new StringBuilder();
@@ -269,8 +295,10 @@ namespace OpenTrueskillBot.BotCommands
             var loserText = string.Join(", ", match.Loser.Players.Select(x => x.IGN));
             sb.Append($"**{winnerText}** vs **{loserText}**{Environment.NewLine}{Environment.NewLine}");
 
-            sb.Append($"**{matchTuple.Item2 - 1}** subsequent match{(matchTuple.Item2 == 2 ? "" : "es")} were re-calculated.");
+            sb.Append($"**{matchTuple.Item2 - 1}** subsequent match{(matchTuple.Item2 == 2 ? " was" : "es were")} re-calculated.");
             
+            await msg.DeleteAsync();
+
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
         }
 

@@ -94,6 +94,18 @@ namespace OpenTrueskillBot.BotCommands
         }
 
         [RequireUserPermission(GuildPermission.ManageGuild)]
+        [Command("viewpermittedroles")]
+        [Summary("Shows a list of the roles permitted to use the bot skill commands.")]
+        public Task ViewPermittedRoleCommand() {
+            var sb = new StringBuilder();
+            sb.Append("**The following roles are permitted:**" + Environment.NewLine + Environment.NewLine);
+            foreach (var r in Program.Config.PermittedRoleNames) {
+                sb.Append($"{r}{Environment.NewLine}");
+            }
+            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
+        }
+
+        [RequireUserPermission(GuildPermission.ManageGuild)]
         [Command("removepermittedrole")]
         [Summary("Adds a role that is permitted to use the bot skill commands.")]
         public Task RemovePermittedRoleCommand([Remainder][Summary("The name of the role to remove.")] string roleName) {
@@ -191,7 +203,12 @@ namespace OpenTrueskillBot.BotCommands
                     x.Name = prefix + cmd.Name + " (Aliases: !" + string.Join(", !", cmd.Aliases) + ")";
                     if (cmd.Parameters.Count != 0) {
                         x.Value +=  $"Usage: {prefix}{cmd.Name} " +  
-                            $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[" + p.Name + " = " + p.DefaultValue + "]" : "<" + p.Name + ">"))}\n";
+                            $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[" + p.Name + " = " + p.DefaultValue + "]" : "<" + p.Name + ">"))}{Environment.NewLine}";
+
+                        foreach (var p in cmd.Parameters) {
+                            x.Value += $"{p.Name}: *{p.Summary}*{Environment.NewLine}";
+                        }
+                        x.Value += Environment.NewLine;
                     }
                     x.Value += $"{cmd.Summary}";
                     x.IsInline = false;
@@ -200,10 +217,5 @@ namespace OpenTrueskillBot.BotCommands
 
             return ReplyAsync("", false, builder.Build());
         }
-
-        
-
-        
-        
     }
 }

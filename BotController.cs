@@ -35,6 +35,7 @@ namespace OpenTrueskillBot
             // get leaderboard
             if (File.Exists(lbFileName)) {
                 CurLeaderboard = SerializeHelper.Deserialize<Leaderboard>(lbFileName);
+                CurLeaderboard.Initialize();
             }
             else {
                 CurLeaderboard = new Leaderboard();

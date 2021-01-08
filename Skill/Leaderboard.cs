@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -51,27 +52,87 @@ namespace OpenTrueskillBot.Skill
         /// </summary>
         public List<Player> Players { get; set; } = new List<Player>();
 
+        // sorted by TS instead of ID, only use for output - don't binary search
+        private List<Player> players_byTs = new List<Player>();
+
         public Leaderboard() {
 
         }
 
         public void AddPlayer(Player p) {
 
-            Players.Add(p);
+            // O(n) insertion rather than n log n
+            for (int i = 0; i < Players.Count; ++i) {
+                if (p.UUId.CompareTo(Players[i].UUId) >= 0) {
+                    Players.Insert(i, p);
+                    break;
+                }
+            }
+
+            for (int i = 0; i < players_byTs.Count; ++i) {
+                if (p.DisplayedSkill >= players_byTs[i].DisplayedSkill) {
+                    players_byTs.Insert(i, p);
+                    break;
+                }
+            }
+
             // Todo: implement a faster insertion algorithm
-            sortBoard();
+            // sortBoard();
 
             InvokeChange();
 
         }
 
-        private void sortBoard() {
-            Players.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
+        public void Initialize() {
+            players_byTs = Players.Select(x => x).ToList();
+            Players.Sort((x, y) => x.UUId.CompareTo(y.UUId));
+            players_byTs.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
         }
 
+        private void sortBoard() {
+            Players.Sort((x, y) => x.UUId.CompareTo(x.UUId));
+            players_byTs.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
+        }
+
+
+
         public event EventHandler LeaderboardChanged;
-        public void InvokeChange() {
-            sortBoard();
+        public void InvokeChange(int changeCount = -1) {
+
+            // code optimisations, choose the fastest out of quicksort or bubblesort
+            var quickSortOps = BitOperations.Log2(Convert.ToUInt32(Players.Count + 1)) * Players.Count;
+            var bubbleOps = changeCount * Players.Count;
+
+            if (changeCount <= 0 || quickSortOps <= bubbleOps) {
+                sortBoard();
+            }
+            else {
+                // Bubble sort n times.
+                changeCount = Math.Min(changeCount, Players.Count);
+
+                for (int j = 0; j < changeCount; j++) {
+                    for (int i = 0; i < Players.Count - 1; i++) {
+                        if (Players[i].UUId.CompareTo(Players[i + 1].UUId) >= 0) {
+                            var temp = Players[i + 1];
+                            Players[i + 1] = Players[i];
+                            Players[i] = temp;
+                        }
+                    }
+                }
+
+                // todo: make this a more general purpose function..
+                for (int j = 0; j < changeCount; j++) {
+                    for (int i = 0; i < players_byTs.Count - 1; i++) {
+                        if (players_byTs[i].DisplayedSkill.CompareTo(players_byTs[i + 1].DisplayedSkill) < 0) {
+                            var temp = players_byTs[i + 1];
+                            players_byTs[i + 1] = players_byTs[i];
+                            players_byTs[i] = temp;
+                        }
+                    }
+                }
+
+            }
+
             LeaderboardChanged?.Invoke(this, new EventArgs());
         }
 
@@ -79,16 +140,33 @@ namespace OpenTrueskillBot.Skill
         /// Merges data stored in the OldPlayerData struct into the leaderboard.
         /// </summary>
         /// <param name="oldData">An IEnumerable of the old data.</param>
-        public void MergeOldData(IEnumerable<OldPlayerData> oldData) {
-            foreach (var old in oldData)
-            {
-                var found = Players.Find(p => p.UUId.Equals(old.UUId));
+        internal void MergeOldData(IEnumerable<OldPlayerData> oldData) {
+            foreach (var old in oldData) {
+
+                Player found = null;
+
+                // Binary search
+                int min = 0;
+                int max = Players.Count - 1; 
+                while (min <= max) {  
+                    int mid = (min + max) / 2;  
+                    if (old.UUId.Equals(Players[mid].UUId)) {  
+                        found = Players[mid];
+                        break;
+                    }  
+                    else if (old.UUId.CompareTo(Players[mid].UUId) < 0) {  
+                        max = mid - 1;  
+                    }  
+                    else {  
+                        min = mid + 1;  
+                    }  
+                }
+
                 if (found == null) continue;
 
                 found.Sigma = old.Sigma;
                 found.Mu = old.Mu;
             }
-            InvokeChange();
         }
 
         public async Task Reset() {
@@ -128,7 +206,7 @@ namespace OpenTrueskillBot.Skill
             var sb = new StringBuilder();
 
             int p = 0;
-            foreach(var player in Players) {
+            foreach(var player in players_byTs) {
                 var nextStr = "";
 
                 // print ranks in the correct position

@@ -153,19 +153,25 @@ namespace OpenTrueskillBot.Skill
         {
             setOldPlayerDatas();
             await action();
-            if (invokeChange) Program.CurLeaderboard.InvokeChange();
+            if (invokeChange) {
+                Program.CurLeaderboard.InvokeChange(Winner.Players.Count + Loser.Players.Count);
+            }
         }
 
 
-        private void mergeForwardOld()
+        private int mergeForwardOld()
         {
-            Program.CurLeaderboard.MergeOldData(getCumulativeOldData());
+            var data = getCumulativeOldData();
+            Program.CurLeaderboard.MergeOldData(data);
             Console.WriteLine("Merged old data");
+            return data.Count;
         }
 
         public async Task Undo()
         {
-            mergeForwardOld();
+            int count = this.Winner.Players.Count + this.Loser.Players.Count;
+
+            count += mergeForwardOld();
             // undoAction() just does extra things that may not be covered by the default one
             undoAction();
 
@@ -189,16 +195,17 @@ namespace OpenTrueskillBot.Skill
 
             Program.Controller.SerializeActions();
 
-            Program.CurLeaderboard.InvokeChange();
+            Program.CurLeaderboard.InvokeChange(count);
 
             await deleteMessage();
         }
 
         public async Task InsertAfter(MatchAction action)
         {
+            int count = action.Winner.Players.Count + action.Loser.Players.Count;
             if (this.NextAction != null)
             {
-                this.NextAction.mergeForwardOld();
+                count += this.NextAction.mergeForwardOld();
             }
 
             action.NextAction = this.NextAction;
@@ -207,21 +214,23 @@ namespace OpenTrueskillBot.Skill
 
             await action.ReCalculateAndReSend();
 
-            Program.CurLeaderboard.InvokeChange();
+            Program.CurLeaderboard.InvokeChange(count);
             Program.Controller.SerializeActions();
         }
 
         public async Task InsertBefore(MatchAction action)
         {
+            int count = action.Winner.Players.Count + action.Loser.Players.Count;
+
             action.PrevAction = this.PrevAction;
             action.NextAction = this;
             this.PrevAction = action;
 
-            this.mergeForwardOld();
+            count += this.mergeForwardOld();
 
             await action.ReCalculateAndReSend();
 
-            Program.CurLeaderboard.InvokeChange();
+            Program.CurLeaderboard.InvokeChange(count);
             Program.Controller.SerializeActions();
         }
 
