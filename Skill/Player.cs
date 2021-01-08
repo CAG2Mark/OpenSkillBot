@@ -7,17 +7,27 @@ using System.Timers;
 using System.Text;
 using Newtonsoft.Json;
 using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
+using Discord.WebSocket;
 
 namespace OpenTrueskillBot.Skill
 {
     public class Player
     {
 
-        [JsonProperty]
         /// <summary>
         /// The player's unique identifier.
         /// </summary>
         /// <value></value>
+        public Player(string uUId, string iGN, string alias, Rank playerRank) 
+        {
+            this.UUId = uUId;
+                this.IGN = iGN;
+                this.Alias = alias;
+                this.PlayerRank = playerRank;
+               
+        }
+
+        [JsonProperty]
         public string UUId { get; private set; }
 
         /// <summary>
@@ -37,6 +47,11 @@ namespace OpenTrueskillBot.Skill
         /// </summary>
         /// <value></value>
         public ulong DiscordId { get => discordId; set { discordId = value; }}
+
+        public SocketGuildUser GetUser() {
+            return Program.DiscordIO.GetUser(this.discordId);
+        }
+
         /// <summary>
         /// The player's standard deviation.
         /// </summary>
@@ -147,7 +162,7 @@ namespace OpenTrueskillBot.Skill
             
             if (oldRank == null || !oldRank.Equals(this.PlayerRank) || hardRefresh) {
                 // check if the player exists
-                var player = Program.DiscordIO.GetUser(this.DiscordId);
+                var player = GetUser();
                 if (player == null) {
                     refreshingRank = false;
                     return;
@@ -220,7 +235,7 @@ namespace OpenTrueskillBot.Skill
             sb.Append($"**Name**: {this.IGN}{nl}");
             sb.Append($"**Alias**: {(string.IsNullOrWhiteSpace(this.Alias) ? "None" : this.Alias)}{nl}");
             sb.Append($"**Skill**: {r(this.DisplayedSkill)} RD {r(this.Sigma)}{nl}");
-            var user = this.DiscordId == 0 ? null : Program.DiscordIO.GetUser(this.DiscordId);
+            var user = this.DiscordId == 0 ? null : GetUser();
             sb.Append($"**Discord Link**: {(user == null ? "None" : $"Linked as {user.Username}#{user.DiscriminatorValue} with ID {this.DiscordId}")}{nl}");
             sb.Append($"**Bot ID:** {this.UUId}");
 

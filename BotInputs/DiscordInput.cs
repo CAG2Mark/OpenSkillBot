@@ -218,6 +218,31 @@ namespace OpenTrueskillBot.BotInputs
             });
         }
 
+        List<SocketGuildUser> deafened = new List<SocketGuildUser>();
+
+        // Only undeafens users when they were deafened by the bot, and not someone else.
+        public async Task SafeUndeafen(SocketGuildUser user) {
+            if (deafened.Contains(user)) { 
+                await UndeafenUser(user);
+                deafened.Remove(user);
+            }
+        }
+
+        public async Task UndeafenUser(SocketGuildUser user) {
+            await user.ModifyAsync(p => {
+                p.Deaf = false;
+                p.Mute = false;
+            });
+        }
+
+        public async Task DeafenUser(SocketGuildUser user) {
+            await user.ModifyAsync(p => {
+                p.Deaf = true;
+                p.Mute = true;
+            });
+            deafened.Add(user);
+        }
+
         public async Task PopulateChannel(ulong channelId, string[] text) {
             try {
                 var messages = await GetChannel(channelId).GetMessagesAsync(text.Length).FlattenAsync();

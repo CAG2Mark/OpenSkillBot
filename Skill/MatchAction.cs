@@ -64,6 +64,9 @@ namespace OpenTrueskillBot.Skill
 
         public bool IsDraw { get; set; }
 
+        [JsonProperty]
+        public bool IsTourney { get; private set; } = false;
+
         private async Task sendMessage()
         {
             if (Program.Config.HistoryChannelId == 0) return;
@@ -85,6 +88,15 @@ namespace OpenTrueskillBot.Skill
         {
             TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
             await sendMessage();
+            // undeafen the users
+            foreach (var p in Winner.Players) {
+                var user = p.GetUser();
+                if (user.IsDeafened) await Program.DiscordIO.UndeafenUser(user);
+            }
+            foreach (var p in Loser.Players) {
+                var user = p.GetUser();
+                if (user.IsDeafened) await Program.DiscordIO.UndeafenUser(user);
+            }
         }
 
         protected void undoAction()
@@ -92,7 +104,7 @@ namespace OpenTrueskillBot.Skill
         }
 
         // Currently only supports matches between two teams
-        public MatchAction(Team winner, Team loser, bool isDraw = false)
+        public MatchAction(Team winner, Team loser, bool isDraw = false, bool isTourney = false)
         {
             ActionTime = DateTime.UtcNow;
             this.ActionId = Player.RandomString(16);
@@ -100,6 +112,8 @@ namespace OpenTrueskillBot.Skill
             this.Winner = winner;
             this.Loser = loser;
             this.IsDraw = isDraw;
+
+            this.IsTourney = isTourney;
 
             this.winnerUUIDs = winner.Players.Select(p => p.UUId);
             this.loserUUIds = loser.Players.Select(p => p.UUId);
