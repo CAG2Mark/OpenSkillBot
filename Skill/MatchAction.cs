@@ -81,6 +81,7 @@ namespace OpenTrueskillBot.Skill
             else
             {
                 var msg = (RestUserMessage)await chnl.GetMessageAsync(this.discordMessageId);
+
                 await Program.DiscordIO.EditMessage(msg, "", embed);
             }
         }

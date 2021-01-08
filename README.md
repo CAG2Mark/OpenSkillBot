@@ -14,12 +14,12 @@ Currently working features:
 * Match history channel
 * Skill change detection
 * Logging.
-
-The following features are implemented in code, but are not yet accessible via the interface:
 * Match insertion
 
-Not yet implemeneted features (non-exhaustive):
+Planned features (non-exhaustive):
 * Challonge integration.
+* Achievements.
+* Self-service match confirmation.
  
 # Disclaimer
 
