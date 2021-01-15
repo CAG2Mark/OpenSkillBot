@@ -33,7 +33,7 @@ Binaries are not yet provided, so you must clone and run the bot yourself.
 ![Permissions](https://i.imgur.com/KZwNSdN.png)
 Alternatively, the permissions integer is `297872464` if you're into that.
 ## Part 2 - Running the Bot
-1. Make sure .NET Core is installed. It MUST be .NET Core. You can follow instructins here: https://dotnet.microsoft.com/download
+1. Make sure .NET Core is installed. It MUST be .NET Core. You can follow instructions here: https://dotnet.microsoft.com/download
 2. Run the following commands:
 ```bash
 git clone https://github.com/CAG2Mark/OpenTrueskillBot
