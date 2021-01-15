@@ -44,6 +44,7 @@ namespace OpenTrueskillBot.Skill
         }
     }
 
+
     public class Leaderboard
     {
 
@@ -93,7 +94,27 @@ namespace OpenTrueskillBot.Skill
             Players.Sort((x, y) => x.UUId.CompareTo(x.UUId));
             players_byTs.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
         }
+        
+        public Player FindPlayer(string uuid) {
 
+            // Binary search
+            int min = 0;
+            int max = Players.Count - 1; 
+            while (min <= max) {  
+                int mid = (min + max) / 2;  
+                if (uuid.Equals(Players[mid].UUId)) {  
+                    return Players[mid];
+                }  
+                else if (uuid.CompareTo(Players[mid].UUId) < 0) {  
+                    max = mid - 1;  
+                }  
+                else {  
+                    min = mid + 1;  
+                }  
+            }
+
+            return null;
+        }
 
 
         public event EventHandler LeaderboardChanged;
@@ -143,24 +164,7 @@ namespace OpenTrueskillBot.Skill
         internal void MergeOldData(IEnumerable<OldPlayerData> oldData) {
             foreach (var old in oldData) {
 
-                Player found = null;
-
-                // Binary search
-                int min = 0;
-                int max = Players.Count - 1; 
-                while (min <= max) {  
-                    int mid = (min + max) / 2;  
-                    if (old.UUId.Equals(Players[mid].UUId)) {  
-                        found = Players[mid];
-                        break;
-                    }  
-                    else if (old.UUId.CompareTo(Players[mid].UUId) < 0) {  
-                        max = mid - 1;  
-                    }  
-                    else {  
-                        min = mid + 1;  
-                    }  
-                }
+                Player found = FindPlayer(old.UUId);
 
                 if (found == null) continue;
 

@@ -27,6 +27,13 @@ namespace OpenTrueskillBot.Skill
                
         }
 
+
+        /// <summary>
+        /// Refers to whether the player is currently playing.
+        /// </summary>
+        /// <value></value>
+        public bool IsPlaying { get; set; } = false;
+
         [JsonProperty]
         public string UUId { get; private set; }
 
@@ -46,10 +53,15 @@ namespace OpenTrueskillBot.Skill
         /// The player's Discord ID.
         /// </summary>
         /// <value></value>
-        public ulong DiscordId { get => discordId; set { discordId = value; }}
+        public ulong DiscordId { get => discordId; set { discordId = value; discordUser = null; }}
 
-        public SocketGuildUser GetUser() {
-            return Program.DiscordIO.GetUser(this.discordId);
+        private SocketGuildUser discordUser;
+        [JsonIgnoreAttribute]
+        public SocketGuildUser DiscordUser {
+            get {
+                if (discordUser == null) discordUser = Program.DiscordIO.GetUser(DiscordId);
+                return discordUser;
+            }
         }
 
         /// <summary>
@@ -162,7 +174,7 @@ namespace OpenTrueskillBot.Skill
             
             if (oldRank == null || !oldRank.Equals(this.PlayerRank) || hardRefresh) {
                 // check if the player exists
-                var player = GetUser();
+                var player = DiscordUser;
                 if (player == null) {
                     refreshingRank = false;
                     return;
@@ -235,11 +247,21 @@ namespace OpenTrueskillBot.Skill
             sb.Append($"**Name**: {this.IGN}{nl}");
             sb.Append($"**Alias**: {(string.IsNullOrWhiteSpace(this.Alias) ? "None" : this.Alias)}{nl}");
             sb.Append($"**Skill**: {r(this.DisplayedSkill)} RD {r(this.Sigma)}{nl}");
-            var user = this.DiscordId == 0 ? null : GetUser();
+            var user = this.DiscordId == 0 ? null : DiscordUser;
             sb.Append($"**Discord Link**: {(user == null ? "None" : $"Linked as {user.Username}#{user.DiscriminatorValue} with ID {this.DiscordId}")}{nl}");
             sb.Append($"**Bot ID:** {this.UUId}");
 
             return sb.ToString();
+        }
+
+        public async Task Deafen() {
+            if (DiscordUser == null) return;
+            await Program.DiscordIO.DeafenUser(DiscordUser);
+        }
+
+        public async Task Undeafen() {
+            if (DiscordUser == null) return;
+            await Program.DiscordIO.UndeafenUser(DiscordUser);
         }
 
         private static int r(double f) {

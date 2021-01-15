@@ -103,10 +103,14 @@ namespace OpenTrueskillBot.BotInputs
 
             var val = LogQueue.Peek();
             var msg = val.Item1;
+            var text = msg.Message;
+            if (string.IsNullOrWhiteSpace(text)) {
+                text = msg.Exception.Message;
+            }
 
             if (client.ConnectionState == ConnectionState.Connected && Program.Config.LogsChannelId != 0) {
                 try {
-                    var channel = this.GetChannel(Program.Config.LogsChannelId);
+                    var channel = Program.Config.GetLogsChannel();
                     Color color;
                     switch (msg.Severity) {
                         case LogSeverity.Critical:
@@ -132,7 +136,7 @@ namespace OpenTrueskillBot.BotInputs
                         .WithColor(color)
                         .WithFooter(msg.Severity.ToString())
                         .WithTimestamp(val.Item2);
-                    embed.Description = "**" + msg.Source + "**: " + msg.Message;
+                    embed.Description = "**" + msg.Source + "**: " + text;
 
                     await SendMessage("", channel, embed.Build());
                 }
@@ -229,18 +233,19 @@ namespace OpenTrueskillBot.BotInputs
         }
 
         public async Task UndeafenUser(SocketGuildUser user) {
-            await user.ModifyAsync(p => {
-                p.Deaf = false;
-                p.Mute = false;
-            });
+            if (user.VoiceChannel != null)
+                await user.ModifyAsync(p => {
+                    p.Deaf = false;
+                    p.Mute = false;
+                });
         }
 
         public async Task DeafenUser(SocketGuildUser user) {
-            await user.ModifyAsync(p => {
-                p.Deaf = true;
-                p.Mute = true;
-            });
-            deafened.Add(user);
+            if (user.VoiceChannel != null)
+                await user.ModifyAsync(p => {
+                    p.Deaf = true;
+                    p.Mute = true;
+                });
         }
 
         public async Task PopulateChannel(ulong channelId, string[] text) {

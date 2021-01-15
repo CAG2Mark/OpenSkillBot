@@ -70,12 +70,14 @@ namespace OpenTrueskillBot.BotCommands
             [Summary("The ID of the commands channel.")] ulong commandsId,
             [Summary("The ID of the logs channel.")] ulong logsId,
             [Summary("The ID of the leaderboard channel.")] ulong leaderboardId,
-            [Summary("The ID of the match history channel.")] ulong historyId) {
+            [Summary("The ID of the match history channel.")] ulong historyId,
+            [Summary("The ID of the match active matches channel.")] ulong activeMatchesId) {
 
             Program.Config.CommandChannelId = commandsId;
             Program.Config.LogsChannelId = logsId;
             Program.Config.LeaderboardChannelId = leaderboardId;
             Program.Config.HistoryChannelId = historyId;
+            Program.Config.ActiveMatchesChannelId = activeMatchesId;
 
 
             Program.CurLeaderboard.InvokeChange();

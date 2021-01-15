@@ -6,7 +6,7 @@ namespace OpenTrueskillBot.Tournaments
     {
         public DateTime StartTime { get; set; }
         public string Name { get; set; }
-
+        // Challonge not yet implemeted
         public string ChallongeId { get; set; }
     }
 }

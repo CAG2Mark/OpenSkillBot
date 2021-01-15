@@ -13,6 +13,21 @@ namespace OpenTrueskillBot.Skill
 
     public class Team {
         public List<Player> Players = new List<Player>();
+
+        public bool IsSameTeam(Team t) {
+            // O(n) solution for checking equality
+            // Idea from: https://stackoverflow.com/questions/14236672/fastest-way-to-check-if-two-listt-are-equal
+            Dictionary<string, int> hash = new Dictionary<string, int>();
+            foreach (var p in Players) {
+                if (hash.ContainsKey(p.UUId)) ++hash[p.UUId];
+                else hash.Add(p.UUId, 1);
+            } 
+            foreach (var p in t.Players) {
+                if (!hash.ContainsKey(p.UUId) || hash[p.UUId] == 0) return false;
+                --hash[p.UUId];
+            } 
+            return true;
+        }
     }
 
 
@@ -24,17 +39,20 @@ namespace OpenTrueskillBot.Skill
 
     public class MatchAction
     {
+        public static Team UUIDListToTeam(IEnumerable<string> uuids) {
+            var t = new Team();
+            foreach (var uuid in uuids)
+            {
+                t.Players.Add(Program.CurLeaderboard.FindPlayer(uuid));
+            }
+            
+            return t;
+        }
+
         [JsonIgnoreAttribute]
         public Team Winner { 
             get {
-                if (winner == null)
-                {
-                    winner = new Team();
-                    foreach (var uuid in winnerUUIDs)
-                    {
-                        winner.Players.Add(Program.CurLeaderboard.Players.First(p => p.UUId.Equals(uuid)));
-                    }
-                }
+                if (winner == null) winner = UUIDListToTeam(winnerUUIDs);
                 return winner;
             }
             set => winner = value; 
@@ -46,14 +64,7 @@ namespace OpenTrueskillBot.Skill
         [JsonIgnoreAttribute]
         public Team Loser { 
             get {
-                if (loser == null)
-                {
-                    loser = new Team();
-                    foreach (var uuid in loserUUIds)
-                    {
-                        loser.Players.Add(Program.CurLeaderboard.Players.First(p => p.UUId.Equals(uuid)));
-                    }
-                }
+                if (loser == null) loser = UUIDListToTeam(loserUUIds);
                 return loser;
             }
             set => loser = value; 
@@ -73,7 +84,7 @@ namespace OpenTrueskillBot.Skill
 
             // generate message
             var embed = MessageGenerator.MakeMatchMessage(this, this.IsDraw);
-            var chnl = Program.DiscordIO.GetChannel(Program.Config.HistoryChannelId);
+            var chnl = Program.Config.GetHistoryChannel();
             if (this.discordMessageId == 0)
             {
                 this.discordMessageId = (await Program.DiscordIO.SendMessage("", chnl, embed)).Id;
@@ -90,14 +101,8 @@ namespace OpenTrueskillBot.Skill
             TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
             await sendMessage();
             // undeafen the users
-            foreach (var p in Winner.Players) {
-                var user = p.GetUser();
-                if (user.IsDeafened) await Program.DiscordIO.UndeafenUser(user);
-            }
-            foreach (var p in Loser.Players) {
-                var user = p.GetUser();
-                if (user.IsDeafened) await Program.DiscordIO.UndeafenUser(user);
-            }
+            foreach (var p in Winner.Players) await p.Undeafen();
+            foreach (var p in Loser.Players) await p.Undeafen();
         }
 
         protected void undoAction()
@@ -208,11 +213,22 @@ namespace OpenTrueskillBot.Skill
                 tempNext.PrevAction = tempPrev;
             }
 
-            Program.Controller.SerializeActions();
-
             Program.CurLeaderboard.InvokeChange(count);
 
             await deleteMessage();
+        }
+
+        public async Task ReCalculateSelf() {
+            int count = Winner.Players.Count + Loser.Players.Count;
+            if (this.NextAction != null)
+            {
+                count += this.mergeForwardOld();
+            }
+
+            await ReCalculateNext();
+
+            Program.Controller.SerializeActions();
+            Program.CurLeaderboard.InvokeChange(count);
         }
 
         public async Task InsertAfter(MatchAction action)
@@ -292,8 +308,8 @@ namespace OpenTrueskillBot.Skill
             {
                 await this.NextAction.ReCalculateNext();
             }
-
         }
+
 
         /// <summary>
         /// Returns all the cumulative old player data for recalculation of TrueSkill.

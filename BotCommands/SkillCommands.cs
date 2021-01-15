@@ -14,6 +14,47 @@ namespace OpenTrueskillBot.BotCommands
     public class SkillCommands : ModuleBase<SocketCommandContext> {
 
         [RequirePermittedRole]
+        [Command("startmatch")]
+        [Alias(new string[] { "sm" })]
+        [Summary("Starts a match between two teams.")]
+        public async Task StartMatchCommand(
+            [Summary("The first team.")] string team1, 
+            [Summary("The second team.")] string team2, 
+            [Summary("Whether or not to force start the match even if the player is already playing.")] bool force = false) {
+
+            try {
+                Team t1;
+                Team t2;
+                try {
+                    t1 = strToTeam(team1);
+                    t2 = strToTeam(team2);
+                }
+                catch (Exception e) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                    return;
+                }
+
+                var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
+                var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
+
+                var match = await Program.Controller.StartMatchAction(t1, t2, false, force);
+
+                if (match == null) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                        $"One or more of the players you specified are already playing. Please set `force` to `true` if you wish to override this protection.")); 
+                    return; 
+                }
+
+                string output = $"Started the match between **{t1_s}** and **{t2_s}**.";
+
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output));
+            }
+            catch (Exception e) {
+                await ReplyAsync(e.Message);
+            }
+        }
+
+        [RequirePermittedRole]
         [Command("fullmatch")]
         [Alias(new string[] { "fm" })]
         [Summary("Calculates a full match between two teams.")]
@@ -58,26 +99,16 @@ namespace OpenTrueskillBot.BotCommands
                 Context.Channel, 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Finding the match **{id}**..."));
 
-            MatchAction match;
-            int depth;
+            var matchTuple = FindMatch(id);
 
-            // special case
-            if (Program.Controller.LatestAction.ActionId.Equals(id)) {
-                match = Program.Controller.LatestAction;
-                depth = 1;
-            }
-            else {
-                // find the match
-                var matchTuple = Program.Controller.LatestAction.FindMatch(id);
-                match = matchTuple.Item1;
-                depth = matchTuple.Item2;
+            MatchAction match = matchTuple.Item1;
+            int depth = matchTuple.Item2;
 
-                if (match == null) {
-                    await msg.DeleteAsync();
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
-                        ));
-                    return;
-                }
+            if (match == null) {
+                await msg.DeleteAsync();
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
+                    ));
+                return;
             }
 
             await Program.DiscordIO.EditMessage(msg, "", 
@@ -121,6 +152,77 @@ namespace OpenTrueskillBot.BotCommands
             }
         }
     
+
+        [RequirePermittedRole]
+        [Command("editmatch")]
+        [Summary("Edits a given match.")]
+        public async Task EditMatchCommand([Summary("The match that will be edited.")] string id, [Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
+            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
+
+            // this code is to find the match to insert before
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Finding the match **{id}**..."));
+
+            var matchTuple = FindMatch(id);
+
+            MatchAction match = matchTuple.Item1;
+            int depth = matchTuple.Item2 - 1;
+
+            if (match == null) {
+                await msg.DeleteAsync();
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
+                    ));
+                return;
+            }
+
+            await Program.DiscordIO.EditMessage(msg, "", 
+                EmbedHelper.GenerateInfoEmbed(
+                $":arrows_counterclockwise: Re-calculating the match and re-calculating subsequent matches... (this might take a while)"));
+
+            try {
+                // make sure they are in the correct order
+                if (result == 2) {
+                    var temp = team2;
+                    team2 = team1;
+                    team1 = temp;
+                }
+
+                // Edit the match.
+                Team t1;
+                Team t2;
+                try {
+                    t1 = strToTeam(team1);
+                    t2 = strToTeam(team2);
+                }
+                catch (Exception e) {
+                    await msg.DeleteAsync();
+                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                    return;
+                }
+
+                var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
+                var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
+
+                // Edit the match and recalculate.
+                match.Winner = t1;
+                match.Loser = t2;
+                match.IsDraw = result == 0;
+                await match.ReCalculateSelf();
+
+                // Output it
+                string output = $"The match has been edited to **{t1_s}** vs **{t2_s}**." + 
+                        Environment.NewLine + Environment.NewLine +
+                        $"**{depth}** subsequent match{(depth == 1 ? " was" : "es were")} re-calculated.";
+
+                await msg.DeleteAsync();
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {match.ActionId}"));
+            }
+            catch (Exception e) {
+                await msg.DeleteAsync();
+                await ReplyAsync(e.Message);
+            }
+        }
 
         [Command("addrank")]
         [Summary("Adds a new player rank. If you want ranks to be updated, you must run !refreshrank after this.")]
@@ -260,8 +362,10 @@ namespace OpenTrueskillBot.BotCommands
             }
 
             await msg.DeleteAsync();
-            
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
+            
+            // reset the pointer if the currently focused match has been affected
+            if (count >= p_depth) await PtrResetCommand();
         }
 
         [Command("undo")]
@@ -273,12 +377,14 @@ namespace OpenTrueskillBot.BotCommands
                 await UndoCommand(1);
                 return;
             }
-            // find the match
-            var matchTuple = Program.Controller.LatestAction.FindMatch(id);
-            var match = matchTuple.Item1;
+
+            var matchTuple = FindMatch(id);
+
+            MatchAction match = matchTuple.Item1;
 
             if (match == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."));
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
+                    ));
                 return;
             }
 
@@ -300,11 +406,100 @@ namespace OpenTrueskillBot.BotCommands
             await msg.DeleteAsync();
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
+
+            // reset the pointer if the currently focused match has been affected
+            if (id.Equals(ptrIndicator)) await PtrResetCommand();
+        }
+
+        #region match pointer
+
+        /*
+
+        The purpose of the "match pointer" is to allow for commands such as !undo <id>, !insertmatch, !editmatch etc without
+        needing to copy the ID. This is an advantage for mobile users, who are unable to easily copy the ID, or copy the ID at all.
+
+        */
+
+        async Task viewPtrPos() {
+            if (p_match == null) {
+                p_match = Program.Controller.LatestAction;
+                p_depth = 1;
+            }
+            if (p_match == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no matches."));
+                return;
+            }
+
+            var t1Str = string.Join(", ", p_match.Winner.Players.Select(p => p.IGN));
+            var t2Str = string.Join(", ", p_match.Loser.Players.Select(p => p.IGN));
+
+            if (!p_match.IsDraw) t1Str = "**" + t1Str + "**";
+
+            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
+                "**The pointer is currently on the match:**" + Environment.NewLine + Environment.NewLine +
+                t1Str + Environment.NewLine + t2Str, "ID: " + p_match.ActionId));
+        }
+
+        private static MatchAction p_match;
+        private static int p_depth = 1;
+
+        [Command("ptrreset")]
+        [Summary("Resets the pointer to the latest match.")]
+        public async Task PtrResetCommand() {
+            p_match = Program.Controller.LatestAction;
+            p_depth = 1;
+            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
+                "**The pointer has been reset to the latest match.**"));
+        }
+
+        [Command("viewptr")]
+        [Summary("Outputs the match currently focused on by the pointer.")]
+        public async Task ViewPtrCommand() {
+            await viewPtrPos();
+        }
+
+        [Command("ptrmv")]
+        [Summary("Moves the pointer by a specified amount.")]
+        public async Task PtrMoveCommand(
+            [Summary("The amount of matches to move the pointer by. +ve values move it closer to the latest match.")] int delta
+        ) {
+            if (p_match == null) p_match = Program.Controller.LatestAction;
+            if (p_match == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no matches."));
+                return;
+            }
+            
+            if (delta > 0) {
+                while (delta != 0 && p_match.NextAction != null) {
+                    p_match = p_match.NextAction;
+                    --delta;
+                    --p_depth;
+                }
+            }
+            else if (delta < 0) {
+                while (delta != 0 && p_match.PrevAction != null) {
+                    p_match = p_match.PrevAction;
+                    ++delta;
+                    ++p_depth;
+                }
+            }
+            await viewPtrPos();
+        }
+
+
+        #endregion
+
+        private const string ptrIndicator = "ptr";
+        public static Tuple<MatchAction, int> FindMatch(string id) {
+            if (id.Equals(ptrIndicator)) return new Tuple<MatchAction, int>(p_match, p_depth);
+            if (Program.Controller.LatestAction.ActionId.Equals(id)) 
+                return new Tuple<MatchAction, int>(Program.Controller.LatestAction, 1);
+            return Program.Controller.LatestAction.FindMatch(id);
         }
 
         // helpers
 
-        public Team strToTeam(string teamStr) {
+        public static Team strToTeam(string teamStr) {
             var split = teamStr.Split(',');
             var players = new Player[split.Length];
 
@@ -320,7 +515,5 @@ namespace OpenTrueskillBot.BotCommands
 
             return new Team() { Players = players.ToList() };
         }
-
-
     }
 }

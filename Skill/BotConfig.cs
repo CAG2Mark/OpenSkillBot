@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+using Discord.WebSocket;
 
 namespace OpenTrueskillBot.Skill
 {
@@ -18,6 +20,7 @@ namespace OpenTrueskillBot.Skill
         private ulong leaderboardChannelId;
         private ulong historyChannelId;
         private ulong commandChannelId;
+        private ulong activeMatchesChannelId;
         private List<string> permittedRoleNames = new List<string>();
         private string challongeToken;
         private List<Rank> ranks = new List<Rank>();
@@ -79,16 +82,61 @@ namespace OpenTrueskillBot.Skill
         {
             get => leaderboardChannelId; set => Set(ref leaderboardChannelId, value);
         }
+
+        private ISocketMessageChannel leaderboardChannel;
+        public ISocketMessageChannel GetLeaderboardChannel() {
+            if (leaderboardChannel == null) 
+                leaderboardChannel = Program.DiscordIO.GetChannel(leaderboardChannelId);
+            return leaderboardChannel;
+        }
+
         public ulong HistoryChannelId
         {
             get => historyChannelId; set => Set(ref historyChannelId, value);
         }
+
+        private ISocketMessageChannel historyChannel;
+        public ISocketMessageChannel GetHistoryChannel() {
+            if (historyChannel == null) 
+                historyChannel = Program.DiscordIO.GetChannel(historyChannelId);
+            return historyChannel;
+        }
+
         public ulong CommandChannelId
         {
             get => commandChannelId; set => Set(ref commandChannelId, value);
         }
 
+        private ISocketMessageChannel commandChannel;
+        public ISocketMessageChannel GetCommandChannel() {
+            if (commandChannel == null) 
+                commandChannel = Program.DiscordIO.GetChannel(commandChannelId);
+            return commandChannel;
+        }
+
+
+        public ulong ActiveMatchesChannelId
+        {
+            get => activeMatchesChannelId; set => Set(ref activeMatchesChannelId, value);
+        }
+
+        private ISocketMessageChannel activeMatchesChannel;
+        public ISocketMessageChannel GetActiveMatchesChannel() {
+            if (activeMatchesChannel == null) 
+                activeMatchesChannel = Program.DiscordIO.GetChannel(activeMatchesChannelId);
+            return activeMatchesChannel;
+        }
+
+
         public ulong LogsChannelId { get => logsChannelId; set => Set(ref logsChannelId, value); }
+
+        private ISocketMessageChannel logsChannel;
+        public ISocketMessageChannel GetLogsChannel() {
+            if (logsChannel == null) 
+                logsChannel = Program.DiscordIO.GetChannel(logsChannelId);
+            return logsChannel;
+        }
+
 
         public List<string> PermittedRoleNames
         {
