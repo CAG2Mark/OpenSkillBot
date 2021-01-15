@@ -69,7 +69,7 @@ namespace OpenTrueskillBot
         }
 
         public static void SerializeConfig() {
-            SerializeHelper.Serialize(Config, "config.json");
+            SerializeHelper.Serialize(Config, "config.json", true);
         }
 
         public static void OutputPriv(string output) {
