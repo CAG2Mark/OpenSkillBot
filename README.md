@@ -43,7 +43,7 @@ dotnet run Program.cs
 3. Paste in the Discord bot token you wrote down earlier.
 4. Now, create all the relevant channels, ranks, and link them all up to the bot using the commands. You can use !help to get started.
 
-After you use it, you can see that there will be several JSON files created in the directory. These store the bot's data. You can change certain variables in `BotConfig.json`, but it is highly recommended that you do not touch any of the other JSON files, as changing them may cause strange behaviour with the bot.
+After you use it, you can see that there will be several JSON files created in the directory. These store the bot's data. You can change certain variables in `config.json`, but it is highly recommended that you do not touch any of the other JSON files, as changing them may cause strange behaviour with the bot.
 
 **NOTE**: I would *highly* recommend enabling Developer Mode in Discord, as much of the bot relies on Discord IDs to run. You can enable it under `Discord Settings > Appearance > Developer Mode`.
  
