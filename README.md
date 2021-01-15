@@ -24,7 +24,7 @@ Planned features (non-exhaustive):
  
 # Building and Running
 Binaries are not yet provided, so you must clone and run the bot yourself.
-## Part 1 - Creatning and Inviting the Bot in Discord:
+## Part 1 - Creating and Inviting the Bot in Discord:
 1. Go to Discord Developers and create an application: https://discord.com/developers/applications
 2. Open the applicaton. Go to "Bot" in the sidebar. Click "Add Bot".
 3. Under "Priviliged Gateway Intents", enable "Server Members Intent".
