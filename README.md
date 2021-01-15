@@ -49,4 +49,5 @@ After you use it, you can see that there will be several JSON files created in t
  
 # Disclaimer
 
-This project is not affiliated with Microsoft's Trueskill project in any way, apart from the use of its model. 
+* This project is not affiliated with Microsoft's Trueskill project in any way, apart from the use of its model.
+* This project is not affiliated with Discord (the social platform), Discord.NET, or any other libraries used.
