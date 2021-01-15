@@ -11,7 +11,7 @@ using System.Collections.Generic;
 
 // Most of the code here is copied from the Discord.NET documentation.
 
-namespace OpenTrueskillBot.BotInputs
+namespace OpenSkillBot.BotInputs
 {
     public class DiscordInput {
 

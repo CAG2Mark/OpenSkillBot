@@ -1,4 +1,4 @@
-using OpenTrueskillBot.Skill;
+using OpenSkillBot.Skill;
 using System;
 using Newtonsoft.Json;
 using System.IO;
@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Discord.Rest;
 
-namespace OpenTrueskillBot
+namespace OpenSkillBot
 {
     public class PendingMatch
     {

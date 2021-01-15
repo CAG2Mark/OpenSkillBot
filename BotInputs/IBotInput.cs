@@ -1,6 +1,6 @@
 using System;
 
-namespace OpenTrueskillBot.BotInputs
+namespace OpenSkillBot.BotInputs
 {
     /// <summary>
     /// Allows for multiple forms of IO for the bot, including ones that output to third-party services such as Discord.

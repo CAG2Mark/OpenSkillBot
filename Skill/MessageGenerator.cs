@@ -3,7 +3,7 @@ using System.Linq;
 using System.Text;
 using Discord;
 
-namespace OpenTrueskillBot.Skill
+namespace OpenSkillBot.Skill
 {
     public static class MessageGenerator
     {

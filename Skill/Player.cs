@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 using Discord.WebSocket;
 
-namespace OpenTrueskillBot.Skill
+namespace OpenSkillBot.Skill
 {
     public class Player
     {

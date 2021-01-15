@@ -8,7 +8,7 @@ using Discord.Rest;
 using Newtonsoft.Json;
 using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 
-namespace OpenTrueskillBot.Skill
+namespace OpenSkillBot.Skill
 {
 
     public class Team {

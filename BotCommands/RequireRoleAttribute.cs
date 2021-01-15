@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Discord.Commands;
 using Discord.WebSocket;
 
-namespace OpenTrueskillBot.BotCommands
+namespace OpenSkillBot.BotCommands
 {
 
     // Inherit from PreconditionAttribute

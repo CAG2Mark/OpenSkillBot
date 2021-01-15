@@ -2,10 +2,10 @@ using System;
 using System.Threading.Tasks;
 using Discord.Commands;
 using System.Linq;
-using OpenTrueskillBot.Skill;
+using OpenSkillBot.Skill;
 using Discord;
 
-namespace OpenTrueskillBot.BotCommands
+namespace OpenSkillBot.BotCommands
 {
     [RequirePermittedRole]
     [Name("Player Management Commands")]

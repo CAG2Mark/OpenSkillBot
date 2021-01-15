@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Discord.WebSocket;
 
-namespace OpenTrueskillBot.Skill
+namespace OpenSkillBot.Skill
 {
     public class BotConfig : PropertyNotifier
     {

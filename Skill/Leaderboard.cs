@@ -5,7 +5,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace OpenTrueskillBot.Skill
+namespace OpenSkillBot.Skill
 {
     public class Rank {
         public Rank(int lowerBound, ulong roleId, string name) {

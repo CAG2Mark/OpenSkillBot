@@ -5,14 +5,14 @@ using System.IO;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
-using OpenTrueskillBot.BotInputs;
-using OpenTrueskillBot.Skill;
+using OpenSkillBot.BotInputs;
+using OpenSkillBot.Skill;
 
 
 // Perms integer: 29486144
 // Invite: https://discord.com/api/oauth2/authorize?client_id=781358879937789982&permissions=29486144&scope=bot
 
-namespace OpenTrueskillBot
+namespace OpenSkillBot
 {
     class Program
     {

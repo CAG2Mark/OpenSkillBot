@@ -2,11 +2,11 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Discord.Commands;
 using Discord.WebSocket;
-using OpenTrueskillBot.BotCommands;
+using OpenSkillBot.BotCommands;
 
 // Mostly copied from the Discord.NET documentation.
 
-namespace OpenTrueskillBot.BotInputs
+namespace OpenSkillBot.BotInputs
 {
     public class CommandHandler
     {

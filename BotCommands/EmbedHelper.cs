@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace OpenTrueskillBot.BotCommands {
+namespace OpenSkillBot.BotCommands {
     public static class EmbedHelper {
 
         public static Embed GenerateSuccessEmbed(string text, string footer = null) {

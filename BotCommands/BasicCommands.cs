@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using System.Linq;
 using System.Text;
 
-namespace OpenTrueskillBot.BotCommands
+namespace OpenSkillBot.BotCommands
 {
     [Name("Basic Commands")]
     public class BasicCommands : ModuleBase<SocketCommandContext>

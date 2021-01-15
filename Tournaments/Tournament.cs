@@ -1,6 +1,6 @@
 using System;
 
-namespace OpenTrueskillBot.Tournaments
+namespace OpenSkillBot.Tournaments
 {
     public class Tournament
     {

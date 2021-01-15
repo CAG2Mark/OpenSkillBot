@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Serialization;
 
-namespace OpenTrueskillBot {
+namespace OpenSkillBot {
     public abstract class PropertyNotifier : INotifyPropertyChanged {
 
         /// <summary>

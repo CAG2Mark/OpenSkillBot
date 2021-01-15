@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using System.IO;
 
-namespace OpenTrueskillBot
+namespace OpenSkillBot
 {
     public static class SerializeHelper
     {
