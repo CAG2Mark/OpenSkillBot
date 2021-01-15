@@ -1,4 +1,4 @@
-# OpenTrueskillBot
+# OpenSkillBot
 An open source bot for Discord Servers to calculate and store the TrueSkill of players with Challonge integration.
 
 # Status of Features
@@ -36,8 +36,8 @@ Alternatively, the permissions integer is `297872464` if you're into that.
 1. Make sure .NET Core is installed. It MUST be .NET Core. You can follow instructions here: https://dotnet.microsoft.com/download
 2. Run the following commands:
 ```bash
-git clone https://github.com/CAG2Mark/OpenTrueskillBot
-cd OpenTrueskillBot
+git clone https://github.com/CAG2Mark/OpenSkillBot
+cd OpenSkillBot
 dotnet run Program.cs
 ```
 3. Paste in the Discord bot token you wrote down earlier.
