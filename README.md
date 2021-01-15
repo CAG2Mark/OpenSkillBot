@@ -24,7 +24,7 @@ Planned features (non-exhaustive):
  
 # Building and Running
 Binaries are not yet provided, so you must clone and run the bot yourself.
-## Part 1 - Creating and Inviting the Bot in Discord:
+### Part 1 - Creating and Inviting the Bot in Discord:
 1. Go to Discord Developers and create an application: https://discord.com/developers/applications
 2. Open the applicaton. Go to "Bot" in the sidebar. Click "Add Bot".
 3. Under "Priviliged Gateway Intents", enable "Server Members Intent".
@@ -32,7 +32,7 @@ Binaries are not yet provided, so you must clone and run the bot yourself.
 5. To invite the bot to your server, click "OAuth2" in the sidebar, and enable "Bot" under "Scopes". Select the following permissions:
 ![Permissions](https://i.imgur.com/KZwNSdN.png)
 Alternatively, the permissions integer is `297872464` if you're into that.
-## Part 2 - Running the Bot
+### Part 2 - Running the Bot
 1. Make sure .NET Core is installed. It MUST be .NET Core. You can follow instructions here: https://dotnet.microsoft.com/download
 2. Run the following commands:
 ```bash
