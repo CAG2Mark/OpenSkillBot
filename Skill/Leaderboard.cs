@@ -77,8 +77,7 @@ namespace OpenSkillBot.Skill
                 }
             }
 
-            // Todo: implement a faster insertion algorithm
-            // sortBoard();
+            // Insert into dictionary for fast searching of player by discord ID
 
             InvokeChange();
 

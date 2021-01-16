@@ -113,7 +113,7 @@ namespace OpenSkillBot.Skill
         public MatchAction(Team winner, Team loser, bool isDraw = false, bool isTourney = false)
         {
             ActionTime = DateTime.UtcNow;
-            this.ActionId = Player.RandomString(16);
+            this.ActionId = Player.RandomString(20);
 
             this.Winner = winner;
             this.Loser = loser;

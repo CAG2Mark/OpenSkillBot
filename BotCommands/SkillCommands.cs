@@ -6,6 +6,7 @@ using OpenSkillBot.Skill;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace OpenSkillBot.BotCommands
 {
@@ -267,7 +268,9 @@ namespace OpenSkillBot.BotCommands
         
         [Command("refreshrank", RunMode = RunMode.Async)]
         [Summary("Refreshes the rank of all players, or a specific list of players.")]
-        public async Task RefreshRankCommand([Summary("A comma separated list of the players to update.")] string players = "all") {
+        public async Task RefreshRankCommand([Summary(
+            "A comma separated list of the players to update. Type \"all\" to refresh all players.")][Remainder] 
+            string players = "all") {
 
             var channel = Context.Channel;
 
@@ -282,11 +285,10 @@ namespace OpenSkillBot.BotCommands
             else {
                 playersList = new List<Player>();
 
-                players = players.Replace(" ", "");
-                var playersSpl = players.Split(',');
+                var playersSpl = Regex.Split(players, ",(?=(?:[^']*'[^']*')*[^']*$)");
 
                 foreach (var p in playersSpl) {
-                    var player = Program.CurLeaderboard.FuzzySearch(p);
+                    var player = PlayerManagementCommands.FindPlayer(p);
                     if (player == null) {
                         await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the player **{p}**."));
                         return;
@@ -500,7 +502,7 @@ namespace OpenSkillBot.BotCommands
         // helpers
 
         public static Team strToTeam(string teamStr) {
-            var split = teamStr.Split(',');
+            var split = Regex.Split(teamStr, ",(?=(?:[^']*'[^']*')*[^']*$)");
             var players = new Player[split.Length];
 
             for (int i = 0; i < split.Length; ++i) {

@@ -8,6 +8,7 @@ using System.Timers;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Discord.Rest;
+using OpenSkillBot.Tournaments;
 
 namespace OpenSkillBot
 {
@@ -90,6 +91,8 @@ namespace OpenSkillBot
 
         private const string pmFileName = "pendingmatches.json";
 
+        private const string tourneyFileName = "tourneys.json";
+
         public Leaderboard CurLeaderboard;
 
         private Timer lbTimer = new Timer(3000);
@@ -129,6 +132,11 @@ namespace OpenSkillBot
                 pendingMatches = SerializeHelper.Deserialize<List<PendingMatch>>(pmFileName);
             }
 
+            // get tournaments
+            if (File.Exists(tourneyFileName)) {
+                Tournaments = SerializeHelper.Deserialize<List<Tournament>>(tourneyFileName);
+            }
+
             CurLeaderboard.LeaderboardChanged += (o,e) => {
                 UpdateLeaderboard();
             };
@@ -161,6 +169,7 @@ namespace OpenSkillBot
             SerializeLeaderboard();
             SerializeActions();
             SerializePending();
+            SerializeTourneys();
         }
 
         public bool SerializeLeaderboard() {
@@ -196,6 +205,18 @@ namespace OpenSkillBot
             }
             catch (System.Exception) {
                 Console.WriteLine("WARNING: Failed to save pending matches!");
+                return false;
+            }
+        }
+
+        public bool SerializeTourneys() {
+            // Convert the pending players to a list of UUIDs
+            try {
+                SerializeHelper.Serialize(Tournaments, tourneyFileName);
+                return true;
+            }
+            catch (System.Exception) {
+                Console.WriteLine("WARNING: Failed to save tournaments!");
                 return false;
             }
         }
@@ -273,7 +294,13 @@ namespace OpenSkillBot
             SerializeActions();
 
             return action;
+        }
 
+        public List<Tournament> Tournaments = new List<Tournament>();
+        public async Task AddTourmanet(Tournament t) {
+            Tournaments.Add(t);
+            SerializeTourneys();
+            await t.SendMessage();
         }
 
         public async Task<MatchAction> UndoAction() {

@@ -111,34 +111,36 @@ namespace OpenSkillBot.BotInputs
             if (client.ConnectionState == ConnectionState.Connected && Program.Config.LogsChannelId != 0) {
                 try {
                     var channel = Program.Config.GetLogsChannel();
-                    Color color;
-                    switch (msg.Severity) {
-                        case LogSeverity.Critical:
-                            color = Discord.Color.DarkRed;
-                            break;
-                        case LogSeverity.Error:
-                            color = Discord.Color.Red;
-                            break;
-                        case LogSeverity.Warning:
-                            color = Discord.Color.Gold;
-                            break;
-                        case LogSeverity.Verbose:
-                            color = Discord.Color.Blue;
-                            break;
-                        case LogSeverity.Info:
-                            color = Discord.Color.Blue;
-                            break;
-                        default:
-                            color = new Color(255, 255, 255);
-                            break;
-                    }
-                    var embed = new EmbedBuilder()
-                        .WithColor(color)
-                        .WithFooter(msg.Severity.ToString())
-                        .WithTimestamp(val.Item2);
-                    embed.Description = "**" + msg.Source + "**: " + text;
+                    if (channel != null) {
+                        Color color;
+                        switch (msg.Severity) {
+                            case LogSeverity.Critical:
+                                color = Discord.Color.DarkRed;
+                                break;
+                            case LogSeverity.Error:
+                                color = Discord.Color.Red;
+                                break;
+                            case LogSeverity.Warning:
+                                color = Discord.Color.Gold;
+                                break;
+                            case LogSeverity.Verbose:
+                                color = Discord.Color.Blue;
+                                break;
+                            case LogSeverity.Info:
+                                color = Discord.Color.Blue;
+                                break;
+                            default:
+                                color = new Color(255, 255, 255);
+                                break;
+                        }
+                        var embed = new EmbedBuilder()
+                            .WithColor(color)
+                            .WithFooter(msg.Severity.ToString())
+                            .WithTimestamp(val.Item2);
+                        embed.Description = "**" + msg.Source + "**: " + text;
 
-                    await SendMessage("", channel, embed.Build());
+                        await SendMessage("", channel, embed.Build());
+                    }
                 }
                 catch (Exception) {
                     Console.WriteLine("Warning: Could not write to Discord logs channel! Queuing.");
@@ -248,9 +250,39 @@ namespace OpenSkillBot.BotInputs
                 });
         }
 
+        // permissions integers
+        const ulong sendInt = 2048;
+        const ulong botInt = 224336;
+        public async Task<RestCategoryChannel> CreateCategory(string name) {
+            var cat = await CurGuild.CreateCategoryChannelAsync(name);
+            await cat.AddPermissionOverwriteAsync(CurGuild.EveryoneRole, new OverwritePermissions(0, sendInt));
+            await cat.AddPermissionOverwriteAsync(client.CurrentUser, new OverwritePermissions(botInt, 0));
+            return cat;
+        }
+
+        public async Task<RestTextChannel> CreateChannel(string name, ulong categoryId = 0, bool everyoneCanSend = false) {
+            var chnl = await CurGuild.CreateTextChannelAsync(name);
+            // deny everyone send message perms
+            if (!everyoneCanSend)
+                await chnl.AddPermissionOverwriteAsync(CurGuild.EveryoneRole, new OverwritePermissions(0, sendInt));
+            // give bot perms to send and manage
+            await chnl.AddPermissionOverwriteAsync(client.CurrentUser, new OverwritePermissions(botInt, 0));
+
+            if (categoryId != 0) await chnl.ModifyAsync(p => p.CategoryId = categoryId);
+
+            return chnl;
+        }
+
+        public async Task DeleteChannel(RestTextChannel chnl) {
+            await chnl.DeleteAsync();
+        }
+
         public async Task PopulateChannel(ulong channelId, string[] text) {
             try {
-                var messages = await GetChannel(channelId).GetMessagesAsync(text.Length).FlattenAsync();
+                var chnl = GetChannel(channelId);
+                if (chnl == null) return;
+                
+                var messages = await chnl.GetMessagesAsync(text.Length).FlattenAsync();
                 int count = messages.Count();
 
                 List<IMessage> messagesList = messages.OrderBy(m => ((RestUserMessage)m).Timestamp).ToList();

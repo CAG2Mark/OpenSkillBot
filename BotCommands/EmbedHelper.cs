@@ -29,6 +29,14 @@ namespace OpenSkillBot.BotCommands {
             return builder.Build();
         }
 
+        public static Embed GenerateWarnEmbed(string text) {
+            var builder = new EmbedBuilder() {
+                Color = new Color(235,182,52)
+            };
+            builder.Description = $":warning: {text}";
+            return builder.Build();
+        }
+
         public static Embed GenerateErrorEmbed(string text) {
             var builder = new EmbedBuilder() {
                 Color = Discord.Color.Red

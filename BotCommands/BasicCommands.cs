@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
 using System.Text;
+using Discord.Rest;
+using Discord.WebSocket;
 
 namespace OpenSkillBot.BotCommands
 {
@@ -63,25 +65,108 @@ namespace OpenSkillBot.BotCommands
             return ReplyAsync(message);
         }
 
+        [RequireUserPermission(GuildPermission.Administrator)]
+        [Command("deletechannels")]
+        [Summary("Deletes all of the set up channels (DEBUG).")]
+        public async Task DeleteChannelsCommand() {
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Deleting channels - please wait..."));
+
+            await ((SocketTextChannel)Program.Config.GetAchievementsChannel()).DeleteAsync();
+            await ((SocketTextChannel)Program.Config.GetCommandChannel()).DeleteAsync();
+            await ((SocketTextChannel)Program.Config.GetLogsChannel()).DeleteAsync();
+            await ((SocketTextChannel)Program.Config.GetActiveMatchesChannel()).DeleteAsync();
+            await ((SocketTextChannel)Program.Config.GetLeaderboardChannel()).DeleteAsync();
+            await ((SocketTextChannel)Program.Config.GetLogsChannel()).DeleteAsync();
+            await ((SocketTextChannel)Program.Config.GetTourneysChannel()).DeleteAsync();
+            await ((SocketTextChannel)Program.Config.GetSignupLogsChannel()).DeleteAsync();
+            await ((SocketTextChannel)Program.Config.GetSignupsChannel()).DeleteAsync();  
+            Program.Config.LogsChannelId = 0;        
+            Program.Config.AchievementsChannelId = 0;
+            Program.Config.CommandChannelId = 0;
+            Program.Config.LeaderboardChannelId = 0;
+            Program.Config.HistoryChannelId = 0;
+            Program.Config.ActiveMatchesChannelId = 0;
+            Program.Config.TourneysChannelId = 0;
+            Program.Config.SignupLogsChannelId = 0;
+            Program.Config.SignupsChannelId = 0;
+
+            await msg.DeleteAsync();
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Deleted the bot channels."));
+        }
+
+        [RequireUserPermission(GuildPermission.ManageGuild)]
+        [Command("setupchannels")]
+        [Summary("Sets up all the required channels.")]
+        public async Task SetupChannelsCommand() {
+
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Setting up channels - please wait..."));
+
+            // Create Categories.
+            var achievementsCat = (await Program.DiscordIO.CreateCategory("Achievements")).Id;
+            var manageCat = (await Program.DiscordIO.CreateCategory("Skillbot Management")).Id;
+            var skillCat = (await Program.DiscordIO.CreateCategory("Matches")).Id;
+            var tourneyCat = (await Program.DiscordIO.CreateCategory("Tournaments")).Id;
+
+            // Create channels.
+            var achievementsId = (await Program.DiscordIO.CreateChannel("achievements", achievementsCat)).Id;
+
+            var commandsId = (await Program.DiscordIO.CreateChannel("commands", manageCat)).Id;
+            var logsId = (await Program.DiscordIO.CreateChannel("logs", manageCat)).Id;
+
+            var leaderboardId = (await Program.DiscordIO.CreateChannel("leaderboard", skillCat)).Id;
+            var historyId = (await Program.DiscordIO.CreateChannel("match-history", skillCat)).Id;
+            var activeMatchesId = (await Program.DiscordIO.CreateChannel("active-matches", manageCat)).Id;
+
+            var tourneysId = (await Program.DiscordIO.CreateChannel("tournaments", tourneyCat)).Id;
+            var signupLogsId = (await Program.DiscordIO.CreateChannel("signup-log", tourneyCat)).Id;
+            var signupsId = (await Program.DiscordIO.CreateChannel("signups", tourneyCat, true)).Id;
+
+            // Save to config.
+            Program.Config.AchievementsChannelId = achievementsId;
+            Program.Config.CommandChannelId = commandsId;
+            Program.Config.LogsChannelId = logsId;
+            Program.Config.LeaderboardChannelId = leaderboardId;
+            Program.Config.HistoryChannelId = historyId;
+            Program.Config.ActiveMatchesChannelId = activeMatchesId;
+            Program.Config.TourneysChannelId = tourneysId;
+            Program.Config.SignupLogsChannelId = signupLogsId;
+            Program.Config.SignupsChannelId = signupsId;
+
+            await msg.DeleteAsync();
+
+            Program.CurLeaderboard.InvokeChange(); 
+
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Succesfully created all the required channels. Basic permissions have been set up for the channels. Change the permissions as you please."));
+        }
+
         [RequireUserPermission(GuildPermission.ManageGuild)]
         [Command("linkchannels")]
         [Summary("Links the commands channel, the leaderboard channel, and the match history channel, in that order.")]
         public Task LinkChannelsCommand(
+            [Summary("The ID of the achievements channel.")] ulong achievementsId,
             [Summary("The ID of the commands channel.")] ulong commandsId,
             [Summary("The ID of the logs channel.")] ulong logsId,
             [Summary("The ID of the leaderboard channel.")] ulong leaderboardId,
             [Summary("The ID of the match history channel.")] ulong historyId,
-            [Summary("The ID of the match active matches channel.")] ulong activeMatchesId) {
+            [Summary("The ID of the active matches channel.")] ulong activeMatchesId,
+            [Summary("The ID of the tournaments channel.")] ulong tourneysId,
+            [Summary("The ID of the tournament signups logs channel.")] ulong signupLogsId,
+            [Summary("The ID of the tournament signups channel.")] ulong signupsId) {
 
             Program.Config.CommandChannelId = commandsId;
             Program.Config.LogsChannelId = logsId;
             Program.Config.LeaderboardChannelId = leaderboardId;
             Program.Config.HistoryChannelId = historyId;
             Program.Config.ActiveMatchesChannelId = activeMatchesId;
+            Program.Config.TourneysChannelId = tourneysId;
+            Program.Config.SignupLogsChannelId = signupLogsId;
+            Program.Config.SignupsChannelId = signupsId;
 
-
-            Program.CurLeaderboard.InvokeChange();
-           
+            Program.CurLeaderboard.InvokeChange();  
 
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Succesfully linked."));
         }

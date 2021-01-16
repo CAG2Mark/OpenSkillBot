@@ -225,7 +225,7 @@ namespace OpenSkillBot.Skill
         // Use when creating a new player
         public Player()
         {
-            this.UUId = RandomString(16);
+            this.UUId = RandomString(20);
             initRankRefresh();
         }
 
@@ -233,7 +233,7 @@ namespace OpenSkillBot.Skill
         public Player(string ign, double mu, double sigma = -1)
         {
             this.IGN = ign;
-            this.UUId = RandomString(16);
+            this.UUId = RandomString(20);
             this.Mu = mu;
 
             if (sigma != -1) this.Sigma = sigma;

@@ -21,11 +21,17 @@ namespace OpenSkillBot.Skill
         private ulong historyChannelId;
         private ulong commandChannelId;
         private ulong activeMatchesChannelId;
+
+        private ulong logsChannelId;
+        private ulong tourneysChannelId;
+        private ulong signupLogsChannelId;
+        private ulong signupsChannelId;
+        private ulong achievementsChannelId;
         private List<string> permittedRoleNames = new List<string>();
         private string challongeToken;
         private List<Rank> ranks = new List<Rank>();
         public ulong unrankedId;
-        private ulong logsChannelId = 0;
+
 
         public BotConfig()
         {
@@ -80,7 +86,7 @@ namespace OpenSkillBot.Skill
         }
         public ulong LeaderboardChannelId
         {
-            get => leaderboardChannelId; set => Set(ref leaderboardChannelId, value);
+            get => leaderboardChannelId; set { Set(ref leaderboardChannelId, value); leaderboardChannel = null; }
         }
 
         private ISocketMessageChannel leaderboardChannel;
@@ -92,7 +98,7 @@ namespace OpenSkillBot.Skill
 
         public ulong HistoryChannelId
         {
-            get => historyChannelId; set => Set(ref historyChannelId, value);
+            get => historyChannelId; set { Set(ref historyChannelId, value); historyChannel = null; }
         }
 
         private ISocketMessageChannel historyChannel;
@@ -104,7 +110,7 @@ namespace OpenSkillBot.Skill
 
         public ulong CommandChannelId
         {
-            get => commandChannelId; set => Set(ref commandChannelId, value);
+            get => commandChannelId; set { Set(ref commandChannelId, value); commandChannel = null; }
         }
 
         private ISocketMessageChannel commandChannel;
@@ -117,7 +123,7 @@ namespace OpenSkillBot.Skill
 
         public ulong ActiveMatchesChannelId
         {
-            get => activeMatchesChannelId; set => Set(ref activeMatchesChannelId, value);
+            get => activeMatchesChannelId; set { Set(ref activeMatchesChannelId, value); activeMatchesChannel = null; }
         }
 
         private ISocketMessageChannel activeMatchesChannel;
@@ -128,7 +134,7 @@ namespace OpenSkillBot.Skill
         }
 
 
-        public ulong LogsChannelId { get => logsChannelId; set => Set(ref logsChannelId, value); }
+        public ulong LogsChannelId { get => logsChannelId; set { Set(ref logsChannelId, value); activeMatchesChannel = null; } }
 
         private ISocketMessageChannel logsChannel;
         public ISocketMessageChannel GetLogsChannel() {
@@ -137,6 +143,41 @@ namespace OpenSkillBot.Skill
             return logsChannel;
         }
 
+        public ulong TourneysChannelId { get => tourneysChannelId; set { Set(ref tourneysChannelId, value); tourneysChannel = null; } }
+
+        private ISocketMessageChannel tourneysChannel;
+        public ISocketMessageChannel GetTourneysChannel() {
+            if (tourneysChannel == null) 
+                tourneysChannel = Program.DiscordIO.GetChannel(tourneysChannelId);
+            return tourneysChannel;
+        }
+
+        public ulong SignupLogsChannelId { get => signupLogsChannelId; set { Set(ref signupLogsChannelId, value); leaderboardChannel = null; } }
+
+        private ISocketMessageChannel signupLogsChannel;
+        public ISocketMessageChannel GetSignupLogsChannel() {
+            if (signupLogsChannel == null) 
+                signupLogsChannel = Program.DiscordIO.GetChannel(signupLogsChannelId);
+            return signupLogsChannel;
+        }
+
+        public ulong SignupsChannelId { get => signupsChannelId; set { Set(ref signupsChannelId, value); leaderboardChannel = null; } }
+
+        private ISocketMessageChannel signupsChannel;
+        public ISocketMessageChannel GetSignupsChannel() {
+            if (signupsChannel == null) 
+                signupsChannel = Program.DiscordIO.GetChannel(signupsChannelId);
+            return signupsChannel;
+        }
+
+        public ulong AchievementsChannelId { get => achievementsChannelId; set { Set(ref achievementsChannelId, value); leaderboardChannel = null; } }
+
+        private ISocketMessageChannel achievementsChannel;
+        public ISocketMessageChannel GetAchievementsChannel() {
+            if (achievementsChannel == null) 
+                achievementsChannel = Program.DiscordIO.GetChannel(achievementsChannelId);
+            return achievementsChannel;
+        }
 
         public List<string> PermittedRoleNames
         {
