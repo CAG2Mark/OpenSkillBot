@@ -49,6 +49,16 @@ namespace OpenSkillBot.Skill
             return t;
         }
 
+        public static List<MatchAction> UUIDListToMatches(IEnumerable<string> uuids) {
+            var m = new List<MatchAction>();
+            foreach (var uuid in uuids)
+            {
+                m.Add(Program.Controller.FindMatch(uuid));
+            }
+            
+            return m;
+        }
+
         [JsonIgnoreAttribute]
         public Team Winner { 
             get {
@@ -77,13 +87,14 @@ namespace OpenSkillBot.Skill
 
         [JsonProperty]
         public bool IsTourney { get; private set; } = false;
+        public string TourneyId { get; set; }
 
         private async Task sendMessage()
         {
             if (Program.Config.HistoryChannelId == 0) return;
 
             // generate message
-            var embed = MessageGenerator.MakeMatchMessage(this, this.IsDraw);
+            var embed = MessageGenerator.MakeMatchMessage(this);
             var chnl = Program.Config.GetHistoryChannel();
             if (this.discordMessageId == 0)
             {
@@ -114,6 +125,8 @@ namespace OpenSkillBot.Skill
         {
             ActionTime = DateTime.UtcNow;
             this.ActionId = Player.RandomString(20);
+
+            Program.Controller.AddMatchToHash(this);
 
             this.Winner = winner;
             this.Loser = loser;
@@ -187,7 +200,7 @@ namespace OpenSkillBot.Skill
             return data.Count;
         }
 
-        public async Task Undo()
+        public async Task<int> Undo()
         {
             int count = this.Winner.Players.Count + this.Loser.Players.Count;
 
@@ -195,10 +208,14 @@ namespace OpenSkillBot.Skill
             // undoAction() just does extra things that may not be covered by the default one
             undoAction();
 
+            Program.Controller.RemoveMatchFromHash(this);
+
+            int depth = 0;
+
             // recalculate future values
             if (NextAction != null)
             {
-                await NextAction.ReCalculateNext();
+                depth = await NextAction.ReCalculateNext();
             }
 
             // Unlink this node
@@ -216,19 +233,23 @@ namespace OpenSkillBot.Skill
             Program.CurLeaderboard.InvokeChange(count);
 
             await deleteMessage();
+
+            return depth;
         }
 
-        public async Task ReCalculateSelf() {
+        public async Task<int> ReCalculateSelf() {
             int count = Winner.Players.Count + Loser.Players.Count;
             if (this.NextAction != null)
             {
                 count += this.mergeForwardOld();
             }
 
-            await ReCalculateNext();
+            int depth = await ReCalculateNext();
 
             Program.Controller.SerializeActions();
             Program.CurLeaderboard.InvokeChange(count);
+
+            return depth;
         }
 
         public async Task InsertAfter(MatchAction action)
@@ -249,7 +270,7 @@ namespace OpenSkillBot.Skill
             Program.Controller.SerializeActions();
         }
 
-        public async Task InsertBefore(MatchAction action)
+        public async Task<int> InsertBefore(MatchAction action)
         {
             int count = action.Winner.Players.Count + action.Loser.Players.Count;
 
@@ -259,10 +280,12 @@ namespace OpenSkillBot.Skill
 
             count += this.mergeForwardOld();
 
-            await action.ReCalculateAndReSend();
+            int depth = await action.ReCalculateAndReSend();
 
             Program.CurLeaderboard.InvokeChange(count);
             Program.Controller.SerializeActions();
+
+            return depth;
         }
 
         private async Task deleteMessage()
@@ -291,23 +314,25 @@ namespace OpenSkillBot.Skill
         }
 
 
-        public async Task ReCalculateAndReSend()
+        public async Task<int> ReCalculateAndReSend()
         {
             await deleteMessage();
             await DoAction(false);
             if (this.NextAction != null)
             {
-                await this.NextAction.ReCalculateAndReSend();
+                return await this.NextAction.ReCalculateAndReSend() + 1;
             }
+            return 1;
         }
-        public async Task ReCalculateNext()
+        public async Task<int> ReCalculateNext()
         {
             await DoAction(false);
 
             if (this.NextAction != null)
             {
-                await this.NextAction.ReCalculateNext();
+                return await this.NextAction.ReCalculateNext() + 1;
             }
+            return 1;
         }
 
 

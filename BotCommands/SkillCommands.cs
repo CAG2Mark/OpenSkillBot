@@ -21,8 +21,12 @@ namespace OpenSkillBot.BotCommands
         public async Task StartMatchCommand(
             [Summary("The first team.")] string team1, 
             [Summary("The second team.")] string team2, 
-            [Summary("Whether or not to force start the match even if the player is already playing.")] bool force = false) {
+            [Summary("Whether or not to force start the match even if the player is already playing.")] bool force = false
+        ) {
+            await ReplyAsync("", false, (await StartMatch(team1, team2, force)).Item2);        
+        }
 
+        public static async Task<Tuple<PendingMatch, Embed>> StartMatch(string team1, string team2, bool force, bool isTourney = false) {
             try {
                 Team t1;
                 Team t2;
@@ -31,27 +35,25 @@ namespace OpenSkillBot.BotCommands
                     t2 = strToTeam(team2);
                 }
                 catch (Exception e) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
-                    return;
+                    return new Tuple<PendingMatch, Embed>(null, EmbedHelper.GenerateErrorEmbed(e.Message));
                 }
 
                 var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
                 var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
 
-                var match = await Program.Controller.StartMatchAction(t1, t2, false, force);
+                var match = await Program.Controller.StartMatchAction(t1, t2, isTourney, force);
 
                 if (match == null) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    return new Tuple<PendingMatch, Embed>(null, EmbedHelper.GenerateErrorEmbed(
                         $"One or more of the players you specified are already playing. Please set `force` to `true` if you wish to override this protection.")); 
-                    return; 
                 }
 
                 string output = $"Started the match between **{t1_s}** and **{t2_s}**.";
 
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output));
+                return new Tuple<PendingMatch, Embed>(match, EmbedHelper.GenerateSuccessEmbed(output));
             }
             catch (Exception e) {
-                await ReplyAsync(e.Message);
+                return new Tuple<PendingMatch, Embed>(null, EmbedHelper.GenerateErrorEmbed(e.Message));
             }
         }
 
@@ -60,8 +62,13 @@ namespace OpenSkillBot.BotCommands
         [Alias(new string[] { "fm" })]
         [Summary("Calculates a full match between two teams.")]
         public async Task FullMatchCommand([Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
-            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
+            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1
+        ) {
+            await ReplyAsync("", false, (await FullMatch(team1, team2, result)).Item2);
+        }
 
+        // allow this code to also be used for !tournamentfullmatch (!tfm)
+        public static async Task<Tuple<MatchAction, Embed>> FullMatch(string team1, string team2, int result = 1, bool isTourney = false) {
             try {
                 Team t1;
                 Team t2;
@@ -70,21 +77,20 @@ namespace OpenSkillBot.BotCommands
                     t2 = strToTeam(team2);
                 }
                 catch (Exception e) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
-                    return;
+                    return new Tuple<MatchAction, Embed>(null, EmbedHelper.GenerateErrorEmbed(e.Message));
                 }
 
                 var t1_s = string.Join(", ", t1.Players.Select(x => x.IGN));
                 var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
 
-                var match = await Program.Controller.AddMatchAction(t1, t2, result);
+                var match = await Program.Controller.AddMatchAction(t1, t2, result, isTourney);
 
                 string output = $"The match between **{t1_s}** and **{t2_s}** has been calculated.";
 
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {match.ActionId}"));
+                return new Tuple<MatchAction, Embed>(match, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {match.ActionId}"));
             }
             catch (Exception e) {
-                await ReplyAsync(e.Message);
+                return new Tuple<MatchAction, Embed>(null, EmbedHelper.GenerateErrorEmbed(e.Message));
             }
         }
 
@@ -100,10 +106,7 @@ namespace OpenSkillBot.BotCommands
                 Context.Channel, 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Finding the match **{id}**..."));
 
-            var matchTuple = FindMatch(id);
-
-            MatchAction match = matchTuple.Item1;
-            int depth = matchTuple.Item2;
+            var match = FindMatch(id);
 
             if (match == null) {
                 await msg.DeleteAsync();
@@ -137,7 +140,7 @@ namespace OpenSkillBot.BotCommands
                 MatchAction newMatch = new MatchAction(t1, t2, result == 0);
 
                 // Insert the new match before the specified match
-                await match.InsertBefore(newMatch);
+                int depth = await match.InsertBefore(newMatch) - 1;
 
                 // Output it
                 string output = $"The match between **{t1_s}** and **{t2_s}** has been calculated." + 
@@ -165,10 +168,7 @@ namespace OpenSkillBot.BotCommands
                 Context.Channel, 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Finding the match **{id}**..."));
 
-            var matchTuple = FindMatch(id);
-
-            MatchAction match = matchTuple.Item1;
-            int depth = matchTuple.Item2 - 1;
+            var match = FindMatch(id);
 
             if (match == null) {
                 await msg.DeleteAsync();
@@ -209,7 +209,7 @@ namespace OpenSkillBot.BotCommands
                 match.Winner = t1;
                 match.Loser = t2;
                 match.IsDraw = result == 0;
-                await match.ReCalculateSelf();
+                int depth = await match.ReCalculateSelf() - 1;
 
                 // Output it
                 string output = $"The match has been edited to **{t1_s}** vs **{t2_s}**." + 
@@ -380,9 +380,7 @@ namespace OpenSkillBot.BotCommands
                 return;
             }
 
-            var matchTuple = FindMatch(id);
-
-            MatchAction match = matchTuple.Item1;
+            var match = FindMatch(id);
 
             if (match == null) {
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
@@ -394,7 +392,7 @@ namespace OpenSkillBot.BotCommands
                 Context.Channel, 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Undoing match and re-calculating subsequent matches... (this might take a while)"));
 
-            await match.Undo();
+            int depth = await match.Undo();
 
             StringBuilder sb = new StringBuilder();
             sb.Append($"**The following match was undone:**{Environment.NewLine}{Environment.NewLine}");
@@ -403,7 +401,7 @@ namespace OpenSkillBot.BotCommands
             var loserText = string.Join(", ", match.Loser.Players.Select(x => x.IGN));
             sb.Append($"**{winnerText}** vs **{loserText}**{Environment.NewLine}{Environment.NewLine}");
 
-            sb.Append($"**{matchTuple.Item2 - 1}** subsequent match{(matchTuple.Item2 == 2 ? " was" : "es were")} re-calculated.");
+            sb.Append($"**{depth}** subsequent match{(depth == 1 ? " was" : "es were")} re-calculated.");
             
             await msg.DeleteAsync();
 
@@ -492,11 +490,11 @@ namespace OpenSkillBot.BotCommands
         #endregion
 
         private const string ptrIndicator = "ptr";
-        public static Tuple<MatchAction, int> FindMatch(string id) {
-            if (id.Equals(ptrIndicator)) return new Tuple<MatchAction, int>(p_match, p_depth);
+        public static MatchAction FindMatch(string id) {
+            if (id.Equals(ptrIndicator)) return p_match;
             if (Program.Controller.LatestAction.ActionId.Equals(id)) 
-                return new Tuple<MatchAction, int>(Program.Controller.LatestAction, 1);
-            return Program.Controller.LatestAction.FindMatch(id);
+                return Program.Controller.LatestAction;
+            return Program.Controller.FindMatch(id);
         }
 
         // helpers

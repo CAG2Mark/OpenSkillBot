@@ -67,12 +67,14 @@ namespace OpenSkillBot.BotCommands
                 
             var tourney = new Tournament(time, tournamentName, TournamentType.DoubleElim);
 
-            await Program.Controller.AddTourmanet(tourney);
+            await Program.Controller.AddTournament(tourney);
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
                 $"Created the tournament **{tournamentName}**:" + Environment.NewLine + Environment.NewLine +
                 $"Date: {tourney.GetTimeStr()}" + Environment.NewLine
             ));
+
+            if (Program.Controller.Tournaments.Count == 1) await SetCurrentTournamentCommand(1);
         }
 
         [RequirePermittedRole]
@@ -94,24 +96,46 @@ namespace OpenSkillBot.BotCommands
             await ReplyAsync("", false, eb.Build());
         }
 
+        static Tournament selectedTourney = null;
+
+        [RequirePermittedRole]
+        [Command("setcurrenttournament")]
+        [Alias(new string[] {"sct"})]
+        [Summary("Selects the tournament you want to add/remove players from or modify.")]
+        public async Task SetCurrentTournamentCommand(
+            [Summary("The index of the tournament (find this using !viewtournaments or !vt).")] int tourneyIndex
+        ) {
+            var tourneys = Program.Controller.Tournaments;
+            if (tourneyIndex < 1 || tourneyIndex > tourneys.Count) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    $"{tourneyIndex} is out of range; it should be between 1 and {tourneys.Count} inclusive.")
+                );
+                return;
+            }
+            var t = tourneys[tourneyIndex-1];
+
+            selectedTourney = t;
+
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Set the selected tournament to **{t.Name}**."));
+        }
+            
+
         [RequirePermittedRole]
         [Command("addparticipants")]
         [Alias(new string[] {"ap"})]
-        [Summary("Adds a participant to a selected tournament.")]
+        [Summary("Adds participants to the selected tournament.")]
         public async Task AddParticipantsCommand(
-            [Summary("The index of the tournament (find this using !viewtournaments or !vt).")] int tourneyIndex,
             [Summary("A comma separated list of the players to add.")][Remainder] string players) {
-            var tourneys = Program.Controller.Tournaments;
-            var t = tourneys[tourneyIndex-1];
-
-            var msg = await Program.DiscordIO.SendMessage("", 
-                Context.Channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding players to the tournament **{t.Name}**..."));
-
-            if (tourneys == null || tourneys.Count == 0) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("There are no tournaments."));
+            
+            if (selectedTourney == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
+                );
                 return;
             }
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding players to the tournament **{selectedTourney.Name}**..."));
 
             var playerNames = new StringBuilder();
             var playersSpl = players.Split(',');
@@ -119,21 +143,119 @@ namespace OpenSkillBot.BotCommands
                 var pl = PlayerManagementCommands.FindPlayer(p);
                 if (pl == null) await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not find the player **{p}**."));
                 else {
-                    await t.AddPlayer(pl, true);
-                    playerNames.Append(pl.IGN + Environment.NewLine);
+                    if (await selectedTourney.AddPlayer(pl, true))
+                        playerNames.Append(pl.IGN + Environment.NewLine);
+                    else
+                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"**{pl.IGN}** is already in the bracket."));
                 }
             }
 
             Program.Controller.SerializeTourneys();
-            await t.SendMessage();
+            await selectedTourney.SendMessage();
 
             await msg.DeleteAsync();
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
-                $"Added the following players to the tournament **{t.Name}**:" + Environment.NewLine + Environment.NewLine +
-                playerNames.ToString()));
+            if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                    $"Added the following players to the tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
+                    playerNames.ToString()));
+            else
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
         }
 
+        [RequirePermittedRole]
+        [Command("removeparticipants")]
+        [Alias(new string[] {"rp"})]
+        [Summary("Removes participants from the selected tournament.")]
+        public async Task RemoveParticipantsCommand(
+            [Summary("A comma separated list of the players to remove.")][Remainder] string players) {
+            
+            if (selectedTourney == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
+                );
+                return;
+            }
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding players to the tournament **{selectedTourney.Name}**..."));
+
+            var playerNames = new StringBuilder();
+            var playersSpl = players.Split(',');
+            foreach (var p in playersSpl) {
+                var pl = PlayerManagementCommands.FindPlayer(p);
+                if (pl == null) await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not find the player **{p}**."));
+                else {
+                    if (await selectedTourney.RemovePlayer(pl, true))
+                        playerNames.Append(pl.IGN + Environment.NewLine);
+                    else
+                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not remove **{pl.IGN}** as they were not in the tournament."));
+                }
+            }
+
+            Program.Controller.SerializeTourneys();
+            await selectedTourney.SendMessage();
+
+            await msg.DeleteAsync();
+
+            if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                    $"Removed the following players from tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
+                    playerNames.ToString()));
+            else
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+        }
+
+        [RequirePermittedRole]
+        [Command("deletetournament")]
+        [Summary("Deletes the selected tournament.")]
+        public async Task DeleteTournamentCommand() {
+            if (selectedTourney == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
+                );
+                return;
+            }
+
+            var t = selectedTourney;
+            await Program.Controller.RemoveTournament(t);
+            selectedTourney = null;
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Deleted the tournament **{t.Name}**."));
+        }
+
+        [RequirePermittedRole]
+        [Command("starttournament")]
+        [Alias(new string[] { "st", "start" })]
+        [Summary("Starts the tournament.")]
+        public async Task StartTournamentCommand() {
+            if (selectedTourney == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
+                );
+                return;
+            }
+
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Started the tournament {selectedTourney.Name}."));
+        }
+
+        [RequirePermittedRole]
+        [Command("tournamentfullmatch")]
+        [Alias(new string[] { "tfm", "cfm" })]
+        [Summary("Calculates a full match between two teams, and reports it to the current tournament.")]
+        public async Task TournamentFullMatchCommand([Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
+            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1
+        ) {
+            if (!Program.Controller.IsTourneyActive) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently running.")
+                );
+                return;
+            }
+            await ReplyAsync("", false, (await SkillCommands.FullMatch(team1, team2, result)).Item2);
+        }
+
+
+        #region helpers
         static DateTime AddDays(DateTime time, int days) {
             return time.AddDays(days);
         }
@@ -143,5 +265,6 @@ namespace OpenSkillBot.BotCommands
         static DateTime AddYears(DateTime time, int years) {
             return time.AddYears(years);
         }
+        #endregion
     }
 }

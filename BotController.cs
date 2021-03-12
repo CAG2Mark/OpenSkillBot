@@ -31,7 +31,13 @@ namespace OpenSkillBot
             // empty ctor for serialization
         }
 
-        public bool IsTourney { get; set; }
+        public PendingMatch(bool isTourney, ulong messageId) 
+        {
+            this.IsTourney = isTourney;
+                this.messageId = messageId;
+               
+        }
+                public bool IsTourney { get; set; }
 
         [JsonProperty]
         private IEnumerable<string> team1ids { get; set; }
@@ -62,7 +68,7 @@ namespace OpenSkillBot
 
             var eb = new EmbedBuilder()
                 .WithFooter(!IsTourney ? "Standard match" : "Tournament match")
-                .WithColor(Discord.Color.Blue);
+                .WithColor(!IsTourney ? Discord.Color.Blue : Discord.Color.Purple);
 
             eb.AddField("Team 1", $"{String.Join(", ", Team1.Players.Select(p => p.IGN))}");
             eb.AddField("Team 2", $"{String.Join(", ", Team2.Players.Select(p => p.IGN))}");
@@ -81,8 +87,21 @@ namespace OpenSkillBot
         public bool IsSameMatch(Team team1, Team team2) {
             return (team1.IsSameTeam(this.Team1) && team2.IsSameTeam(this.Team2)) || (team1.IsSameTeam(this.Team2) && team2.IsSameTeam(this.Team1));
         }
-        
     }
+
+    // lazy serialization technique so i dont have to write code to re-populate all the matches. instead the hash and the linked list
+    // are stored together so json.net is able to serialize each by reference :)))
+    public class MatchesStruct {
+        public MatchAction LatestAction { get; set; }
+        // for O(1) lookup of matches :)
+        public Dictionary<string, MatchAction> MatchHash { get; set; } = new Dictionary<string, MatchAction>();
+    }
+    public class TourneyStruct {
+        public List<Tournament> Tournaments { get; set; } = new List<Tournament>();
+        // for O(1) lookup of matches :)
+        public Tournament ActiveTournament { get; set; }
+    }
+
     public class BotController
     {
 
@@ -108,7 +127,10 @@ namespace OpenSkillBot
             return token.Equals(this.resetToken);
         }
 
-        public MatchAction LatestAction;
+        public MatchesStruct Matches = new MatchesStruct();
+        public MatchAction LatestAction { get => Matches.LatestAction; set => Matches.LatestAction = value; }
+        // for O(1) lookup of matches :)
+        public Dictionary<string, MatchAction> MatchHash { get => Matches.MatchHash; set => Matches.MatchHash = value; }
         public BotController() {
             // get leaderboard
             if (File.Exists(lbFileName)) {
@@ -122,7 +144,7 @@ namespace OpenSkillBot
 
             // get action history
             if (File.Exists(ahFileName)) {
-                LatestAction = SerializeHelper.Deserialize<MatchAction>(ahFileName);
+                Matches = SerializeHelper.Deserialize<MatchesStruct>(ahFileName);
                 if (LatestAction != null)
                     LatestAction.RepopulateLinks();
             }
@@ -134,7 +156,7 @@ namespace OpenSkillBot
 
             // get tournaments
             if (File.Exists(tourneyFileName)) {
-                Tournaments = SerializeHelper.Deserialize<List<Tournament>>(tourneyFileName);
+                Tourneys = SerializeHelper.Deserialize<TourneyStruct>(tourneyFileName);
             }
 
             CurLeaderboard.LeaderboardChanged += (o,e) => {
@@ -188,7 +210,7 @@ namespace OpenSkillBot
 
         public bool SerializeActions() {
             try {
-                SerializeHelper.Serialize(LatestAction, ahFileName);
+                SerializeHelper.Serialize(Matches, ahFileName);
                 return true;
             }
             catch (System.Exception) {
@@ -212,7 +234,7 @@ namespace OpenSkillBot
         public bool SerializeTourneys() {
             // Convert the pending players to a list of UUIDs
             try {
-                SerializeHelper.Serialize(Tournaments, tourneyFileName);
+                SerializeHelper.Serialize(Tourneys, tourneyFileName);
                 return true;
             }
             catch (System.Exception) {
@@ -281,6 +303,11 @@ namespace OpenSkillBot
 
             MatchAction action = new MatchAction(team1, team2, result == 0, isTourney);
 
+            if (isTourney) {
+                Tourneys.ActiveTournament.AddMatch(action);
+                action.TourneyId = Tourneys.ActiveTournament.Id;
+            }
+
             if (LatestAction != null) {
                 // note: this does recalculate
                 await LatestAction.InsertAfter(action);
@@ -296,11 +323,51 @@ namespace OpenSkillBot
             return action;
         }
 
-        public List<Tournament> Tournaments = new List<Tournament>();
-        public async Task AddTourmanet(Tournament t) {
+        public MatchAction FindMatch(string id) {
+            if (MatchHash.ContainsKey(id)) return MatchHash[id];
+            return null;
+        }
+
+        public void AddMatchToHash(MatchAction m) {
+            if (MatchHash.ContainsKey(m.ActionId)) MatchHash[m.ActionId] = m;
+            else MatchHash.Add(m.ActionId, m);
+        }
+
+        public void RemoveMatchFromHash(MatchAction m) {
+            if (MatchHash.ContainsKey(m.ActionId)) MatchHash.Remove(m.ActionId);
+        }
+
+        // compatibility with older code
+        public List<Tournament> Tournaments { get => Tourneys.Tournaments; set => Tourneys.Tournaments = value; }
+        public TourneyStruct Tourneys = new TourneyStruct();
+
+        public bool IsTourneyActive => Tourneys.ActiveTournament != null;
+        public async Task AddTournament(Tournament t) {
             Tournaments.Add(t);
             SerializeTourneys();
             await t.SendMessage();
+        }
+
+        public async Task RemoveTournament(Tournament t) {
+            Tournaments.Remove(t);
+            SerializeTourneys();
+            await t.DeleteMessage();
+        }
+
+        public async Task<bool> StartTournament(Tournament t) {
+            if (Tourneys.ActiveTournament != null) return false;
+            await t.SetIsActive(true);
+            Tourneys.ActiveTournament = t;
+            SerializeTourneys();
+            return true;
+        }
+
+        public async Task<bool> ForceStop(Tournament t) {
+            if (Tourneys.ActiveTournament != null) return false;
+            await t.SetIsActive(false);
+            Tourneys.ActiveTournament = null;
+
+            return true;
         }
 
         public async Task<MatchAction> UndoAction() {

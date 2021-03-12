@@ -11,7 +11,7 @@ namespace OpenSkillBot.Skill
             return (int)Math.Round(f, 0);
         }
 
-        public static Embed MakeMatchMessage(MatchAction action, bool isDraw) {
+        public static Embed MakeMatchMessage(MatchAction action) {
             var winner = action.Winner;
             var loser = action.Loser;
 
@@ -49,22 +49,19 @@ namespace OpenSkillBot.Skill
             }
             
 
-            EmbedBuilder embed = new EmbedBuilder();
+            EmbedBuilder embed = new EmbedBuilder()
+                .WithTimestamp(action.ActionTime)
+                .WithColor(action.IsTourney ? Discord.Color.Purple : Discord.Color.Blue)
+                .WithFooter("ID: " + action.ActionId);
 
             embed.Title = w_s + " vs " + l_s;
 
-            embed.AddField($"Winner{(winner.Players.Count == 1 ? "" : "s")}:", isDraw ? "The match ended in a draw" : w_s);
+            embed.AddField($"Winner{(winner.Players.Count == 1 ? "" : "s")}:", action.IsDraw ? "The match ended in a draw" : w_s);
             embed.AddField("Skill Changes", deltas);
 
             if (!string.IsNullOrWhiteSpace(rankChanges.ToString())) {
                 embed.AddField("Rank Changes", rankChanges);
             }
-
-            embed.Color = new Color(69, 128, 237);
-
-            embed
-                .WithTimestamp(action.ActionTime)
-                .WithFooter("ID: " + action.ActionId);
 
             return embed.Build();
         }

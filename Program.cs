@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
 using OpenSkillBot.BotInputs;
+using OpenSkillBot.ChallongeAPI;
 using OpenSkillBot.Skill;
 
 
@@ -30,6 +31,8 @@ namespace OpenSkillBot
         public static string DiscordToken;
 
         public static BotController Controller;
+
+        public static ChallongeConnection Challonge;
 
         static void Main(string[] args)
         		=> new Program().MainAsync().GetAwaiter().GetResult();
@@ -63,6 +66,29 @@ namespace OpenSkillBot
             var doneTime = DateTime.UtcNow;
 
             InitTime = (int)((doneTime - initTime).Ticks / TimeSpan.TicksPerMillisecond);
+
+            // Log in to challonge.
+
+            Challonge = new ChallongeConnection(Config.ChallongeToken);
+
+            var chTime = DateTime.UtcNow;
+            // Test connection with a basic api call
+            try {
+                var res = await Challonge.GetTournaments();
+                
+                // log response time
+                var chTimeNow = DateTime.UtcNow;
+                var ticks = (chTimeNow - chTime).Milliseconds;
+                await DiscordIO.Log(new LogMessage(LogSeverity.Info, "Challonge", "Challonge connection OK. API response time: " + ticks + "ms"));
+            } catch(ChallongeException e) {
+                // connected but error on challonge
+                await DiscordIO.Log(new LogMessage(LogSeverity.Error, "Challonge", 
+                "Could not log into Challonge. Error(s) are as follows: " + Environment.NewLine + Environment.NewLine +
+                String.Join(Environment.NewLine, e.Errors.ToArray())));
+            } catch (Exception e) {
+                // most likely network error
+                await DiscordIO.Log(new LogMessage(LogSeverity.Error, "Challonge", "Error connecting to Challonge.", e));
+            }
 
             // Block this task until the program is closed.
             await Task.Delay(-1);

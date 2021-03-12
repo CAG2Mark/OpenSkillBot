@@ -40,6 +40,19 @@ namespace OpenSkillBot.Tournaments
         [JsonProperty]
         private List<string> playerUUIds { get; set; } = new List<string>();
 
+        [JsonProperty]
+        private List<string> matchUUIds { get; set; } = new List<string>();
+        
+        private List<MatchAction> matches;
+        [JsonIgnore]
+        public List<MatchAction> Matches {
+            get {
+                if (matches == null) matches = MatchAction.UUIDListToMatches(matchUUIds);
+                return matches;
+            }
+            private set => matches = value;
+        }
+
         private List<Player> players;
 
         [JsonIgnore]
@@ -66,20 +79,44 @@ namespace OpenSkillBot.Tournaments
             await SendMessage();
         }
 
-        public async Task AddPlayer(Player p, bool silent = false)
+        public async Task<bool> AddPlayer(Player p, bool silent = false)
         {
+            if (playerUUIds.Contains(p.UUId)) return false;
             Players.Add(p);
             playerUUIds.Add(p.UUId);
             if (!silent)
                 await SendMessage();
+            return true;
         }
 
-        public async Task RemovePlayer(Player p, bool silent = false)
+        public async Task<bool> RemovePlayer(Player p, bool silent = false)
         {
             Players.Remove(p);
-            playerUUIds.Remove(p.UUId);
+            var result = playerUUIds.Remove(p.UUId);
             if (!silent)
                 await SendMessage();
+            return result;
+        }
+
+        public void AddMatch(MatchAction m) {
+            this.Matches.Add(m);
+            this.matchUUIds.Add(m.ActionId);
+        }
+
+        public void RemoveMatch(MatchAction m) {
+            this.Matches.Remove(m);
+            this.matchUUIds.Remove(m.ActionId);
+        }
+
+        // treat like a stack, but in reality cannot be a c# stack because of serialization
+        public MatchAction PopMatch() {
+            var i = this.Matches.Count - 1;
+            var m = this.Matches[i];
+
+            this.Matches.RemoveAt(i);
+            this.matchUUIds.RemoveAt(i);
+
+            return m;
         }
 
         [JsonProperty]
@@ -98,13 +135,13 @@ namespace OpenSkillBot.Tournaments
 
         public Embed GetEmbed() {
             var eb = new EmbedBuilder()
-                .WithFooter(Id)
+                .WithFooter("ID: Id")
                 .WithColor(IsActive ? Discord.Color.Green : Discord.Color.Blue)
                 .WithTitle(":crossed_swords: " + this.Name);
 
             eb.AddField("Time", GetTimeStr(), true);
             eb.AddField("Format", this.Format.ToString(), true);
-            eb.AddField("Players", this.players.Count == 0 ? "Nobody has signed up yet." : string.Join(", ", this.Players.Select(p => p.IGN)));
+            eb.AddField("Players", this.Players == null || this.Players.Count == 0 ? "Nobody has signed up yet." : string.Join(", ", this.Players.Select(p => p.IGN)));
 
             return eb.Build();
         }
