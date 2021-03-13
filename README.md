@@ -17,10 +17,12 @@ Currently working features:
 * Logging of internal errors and events
 * Match insertion
 
+Features currently being implemented:
+* Challonge integration
+
 Planned features (non-exhaustive):
-* Challonge integration.
-* Achievements.
-* Self-service match confirmation.
+* Achievements
+* Self-service match confirmation
  
 # Building and Running
 Binaries are not yet provided, so you must clone and run the bot yourself.
@@ -51,3 +53,4 @@ After you use it, you can see that there will be several JSON files created in t
 
 * This project is not affiliated with Microsoft's Trueskill project in any way, apart from the use of its model.
 * This project is not affiliated with Discord (the social platform), Discord.NET, or any other libraries used.
+* This project is not affiliated with Challonge.
