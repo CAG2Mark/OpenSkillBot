@@ -8,28 +8,7 @@ using Discord.Rest;
 using Newtonsoft.Json;
 using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 
-namespace OpenSkillBot.Skill
-{
-
-    public class Team {
-        public List<Player> Players = new List<Player>();
-
-        public bool IsSameTeam(Team t) {
-            // O(n) solution for checking equality
-            // Idea from: https://stackoverflow.com/questions/14236672/fastest-way-to-check-if-two-listt-are-equal
-            Dictionary<string, int> hash = new Dictionary<string, int>();
-            foreach (var p in Players) {
-                if (hash.ContainsKey(p.UUId)) ++hash[p.UUId];
-                else hash.Add(p.UUId, 1);
-            } 
-            foreach (var p in t.Players) {
-                if (!hash.ContainsKey(p.UUId) || hash[p.UUId] == 0) return false;
-                --hash[p.UUId];
-            } 
-            return true;
-        }
-    }
-
+namespace OpenSkillBot.Skill {
 
     public struct OldPlayerData {
         public string UUId;
@@ -41,13 +20,22 @@ namespace OpenSkillBot.Skill
     {
         public static Team UUIDListToTeam(IEnumerable<string> uuids) {
             var t = new Team();
+            t.Players = UUIDListToPlayers(uuids);
+
+            return t;
+        }
+
+
+        public static List<Player> UUIDListToPlayers(IEnumerable<string> uuids) {
+            var t = new List<Player>();
             foreach (var uuid in uuids)
             {
-                t.Players.Add(Program.CurLeaderboard.FindPlayer(uuid));
+                t.Add(Program.CurLeaderboard.FindPlayer(uuid));
             }
             
             return t;
         }
+
 
         public static List<MatchAction> UUIDListToMatches(IEnumerable<string> uuids) {
             var m = new List<MatchAction>();
@@ -59,29 +47,9 @@ namespace OpenSkillBot.Skill
             return m;
         }
 
-        [JsonIgnoreAttribute]
-        public Team Winner { 
-            get {
-                if (winner == null) winner = UUIDListToTeam(winnerUUIDs);
-                return winner;
-            }
-            set => winner = value; 
-        }
+        public Team Winner { get; set; }
 
-        [JsonProperty]
-        private IEnumerable<string> winnerUUIDs = new List<string>();
-
-        [JsonIgnoreAttribute]
-        public Team Loser { 
-            get {
-                if (loser == null) loser = UUIDListToTeam(loserUUIds);
-                return loser;
-            }
-            set => loser = value; 
-        }
-
-        [JsonProperty]
-        private IEnumerable<string> loserUUIds = new List<string>();
+        public Team Loser { get; set; }
 
         public bool IsDraw { get; set; }
 
@@ -133,9 +101,6 @@ namespace OpenSkillBot.Skill
             this.IsDraw = isDraw;
 
             this.IsTourney = isTourney;
-
-            this.winnerUUIDs = winner.Players.Select(p => p.UUId);
-            this.loserUUIds = loser.Players.Select(p => p.UUId);
 
             setOldPlayerDatas();
         }

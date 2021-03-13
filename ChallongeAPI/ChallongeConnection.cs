@@ -32,7 +32,7 @@ namespace OpenSkillBot.ChallongeAPI {
         /// <summary>
         /// Gets the list of tournaments of the current user.
         /// </summary>
-        /// <returns>The list of tournaments as a dynamic object. <br/>For the implementation, see https://api.challonge.com/v1/documents/tournaments/index.</returns>
+        /// <returns>The list of tournaments.</returns>
         public async Task<List<ChallongeTournament>> GetTournaments() {
             var res = await httpGet("tournaments.json");
 
@@ -50,11 +50,77 @@ namespace OpenSkillBot.ChallongeAPI {
                 return returns;
             }
             catch (JsonException) {
-                // todo: reimplement error
                 ChallongeError err = JsonConvert.DeserializeObject<ChallongeError>(res);
                 throw new ChallongeException(err.Errors);
             }
+        }
 
+
+        /// <summary>
+        /// Returns the list of participants for a given tournament.
+        /// </summary>
+        /// <param name="tournamentId">The ID of the tournament.</param>
+        /// <returns></returns>
+        public async Task<List<ChallongeParticipant>> GetParticipants(ulong tournamentId) {
+            var res = await httpGet($"tournaments/{tournamentId}/participants.json");
+
+            // convert received format into the proper format
+            List<ChallongeParticipant> returns = new List<ChallongeParticipant>();
+
+            try {
+                List<Dictionary<string, ChallongeParticipant>> des = 
+                    JsonConvert.DeserializeObject<List<Dictionary<string, ChallongeParticipant>>>(res);
+                foreach (var dict in des) {
+                    returns.Add(dict["participant"]);
+                }
+
+                return returns;
+            }
+            catch (JsonException) {
+                ChallongeError err = JsonConvert.DeserializeObject<ChallongeError>(res);
+                throw new ChallongeException(err.Errors);
+            }
+        }
+
+        /// <summary>
+        /// Creates a participant on a given Challonge tournament.
+        /// </summary>
+        /// <param name="tournamentId">The ID of the tournament.</param>
+        /// <param name="participant">Predefined values of the participant.</param>
+        /// <returns>The participant's data as returned by Challonge.</returns>
+        public async Task<ChallongeParticipant> CreateParticipant(ulong tournamentId, ChallongeParticipant participant) {
+            var p = new Dictionary<string,object>();
+            p.Add("participant", participant);
+
+            var res = await httpPost($"tournaments/{tournamentId}/participants.json", p);
+            var des = JsonConvert.DeserializeObject<Dictionary<string, ChallongeParticipant>>(res);
+
+            return des["participant"];
+        }
+
+        /// <summary>
+        /// Deletes a participant from a given tournament.
+        /// </summary>
+        /// <param name="tournamentId">The ID of the tournament.</param>
+        /// <param name="participantId">The ID of the participant to delete.</param>
+        /// <returns></returns>
+        public async Task DeleteParticipant(ulong tournamentId, ulong participantId) {
+            await httpDelete($"tournaments/{tournamentId}/participants/{participantId}.json");
+        }
+
+        /// <summary>
+        /// Creates a Challonge tournament.
+        /// </summary>
+        /// <param name="tournament">Predefined values of the tournament.</param>
+        /// <returns></returns>
+        public async Task<ChallongeTournament> CreateTournament(ChallongeTournament tournament) {
+            var p = new Dictionary<string,object>();
+            p.Add("tournament", tournament);
+
+            var res = await httpPost($"tournaments.json", p);
+            var des = JsonConvert.DeserializeObject<Dictionary<string, ChallongeTournament>>(res);
+
+            return des["tournament"];   
         }
 
         #endregion
@@ -90,14 +156,35 @@ namespace OpenSkillBot.ChallongeAPI {
         /// <param name="parameters">The parameters to send to the API endpoint.</param>
         /// <param name="endpoint">The Challonge API endpoint, starting after /v1/.</param>
         /// <returns></returns>
-        private async Task<string> httpPost(string endpoint, Dictionary<string,string> parameters = null) {
+        private async Task<string> httpPost(string endpoint, Dictionary<string,object> parameters = null) {
+
+            if (parameters == null) parameters = new Dictionary<string, object>();
+            parameters.Add("api_key", token);
+
+            var toSend = JsonConvert.SerializeObject(parameters, Formatting.None, new JsonSerializerSettings {
+                NullValueHandling = NullValueHandling.Ignore
+            });
+
+            HttpContent strContent = new StringContent(toSend, Encoding.UTF8, "application/json");
+
+            var resp = await client.PostAsync(url + endpoint, strContent);
+            var content = await resp.Content.ReadAsStringAsync();
+
+            return content;
+        } 
+
+        /// <summary>
+        /// Makes an HTTP DELETE request.
+        /// </summary>
+        /// <param name="parameters">The parameters to send to the API endpoint.</param>
+        /// <param name="endpoint">The Challonge API endpoint, starting after /v1/.</param>
+        /// <returns></returns>
+        private async Task<string> httpDelete(string endpoint, Dictionary<string,string> parameters = null) {
 
             if (parameters == null) parameters = new Dictionary<string, string>();
             parameters.Add("api_key", token);
 
-            HttpContent strContent = new StringContent(JsonConvert.SerializeObject(parameters), Encoding.UTF8, "application/json");
-
-            var resp = await client.PostAsync(url + endpoint, strContent);
+            var resp = await client.DeleteAsync(url + endpoint + "?" + encodeParams(parameters));
             var content = await resp.Content.ReadAsStringAsync();
 
             return content;
@@ -135,6 +222,16 @@ namespace OpenSkillBot.ChallongeAPI {
                 .AddMinutes(Convert.ToInt32(offsetSpl[1]) * multiplier);
 
             return t;
+        }
+
+        /// <summary>
+        /// Helps convert a DateTime the date time format given by Challonge, ie 2015-01-19T16:57:17-05:00
+        /// </summary>
+        /// <param name="time">The time to convert.</param>
+        /// <returns>The Challonge-formatted time.</returns>
+        public static string ToChallongeTime(DateTime time) {
+            return $"{time.Year.ToString().PadLeft(2, '0')}-{time.Month.ToString().PadLeft(2, '0')}-{time.Day.ToString().PadLeft(2, '0')}T" +
+                $"{time.Hour.ToString().PadLeft(2, '0')}:{time.Minute.ToString().PadLeft(2, '0')}:{time.Second.ToString().PadLeft(2, '0')}-00:00";
         }
         #endregion
     }

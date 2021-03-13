@@ -146,7 +146,8 @@ namespace OpenSkillBot.BotInputs
                     Console.WriteLine("Warning: Could not write to Discord logs channel! Queuing.");
                     return;
                 }
-                LogQueue.Dequeue();
+                if (LogQueue.Count != 0)
+                    LogQueue.Dequeue();
             }
         }
 

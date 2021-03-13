@@ -9,193 +9,195 @@ namespace OpenSkillBot.ChallongeAPI
         // Class generated using script
 
         [JsonProperty("accept_attachments")]
-        public bool AcceptAttachments { get; private set; }
+        public Nullable<bool> AcceptAttachments { get; set; }
 
         [JsonProperty("allow_participant_match_reporting")]
-        public bool AllowParticipantMatchReporting { get; private set; }
+        public Nullable<bool> AllowParticipantMatchReporting { get; set; }
 
         [JsonProperty("anonymous_voting")]
-        public bool AnonymousVoting { get; private set; }
+        public Nullable<bool> AnonymousVoting { get; set; }
 
         [JsonProperty("category")]
-        public string Category { get; private set; }
+        public string Category { get; set; }
 
         [JsonProperty("check_in_duration")]
-        public string CheckInDuration { get; private set; }
+        public Nullable<long> CheckInDuration { get; set; }
 
         [JsonProperty("completed_at")]
-        public string CompletedAt { get; private set; }
+        public string CompletedAt { get; set; }
 
         [JsonProperty("created_at")]
-        public string CreatedAt { get; private set; }
+        public string CreatedAt { get; set; }
 
         [JsonProperty("created_by_api")]
-        public bool CreatedByApi { get; private set; }
+        public Nullable<bool> CreatedByApi { get; set; }
 
         [JsonProperty("credit_capped")]
-        public bool CreditCapped { get; private set; }
+        public Nullable<bool> CreditCapped { get; set; }
 
         [JsonProperty("description")]
-        public string Description { get; private set; }
+        public string Description { get; set; }
 
         [JsonProperty("game_id")]
-        public string GameId { get; private set; }
+        public Nullable<long> GameId { get; set; }
 
         [JsonProperty("group_stages_enabled")]
-        public bool GroupStagesEnabled { get; private set; }
+        public Nullable<bool> GroupStagesEnabled { get; set; }
 
         [JsonProperty("hide_forum")]
-        public bool HideForum { get; private set; }
+        public Nullable<bool> HideForum { get; set; }
 
         [JsonProperty("hide_seeds")]
-        public bool HideSeeds { get; private set; }
+        public Nullable<bool> HideSeeds { get; set; }
 
         [JsonProperty("hold_third_place_match")]
-        public bool HoldThirdPlaceMatch { get; private set; }
+        public Nullable<bool> HoldThirdPlaceMatch { get; set; }
 
         [JsonProperty("id")]
-        public string Id { get; private set; }
+        public Nullable<ulong> Id { get; set; }
 
         [JsonProperty("max_predictions_per_user")]
-        public string MaxPredictionsPerUser { get; private set; }
+        public Nullable<long> MaxPredictionsPerUser { get; set; }
 
         [JsonProperty("name")]
-        public string Name { get; private set; }
+        public string Name { get; set; }
 
         [JsonProperty("notify_users_when_matches_open")]
-        public bool NotifyUsersWhenMatchesOpen { get; private set; }
+        public Nullable<bool> NotifyUsersWhenMatchesOpen { get; set; }
 
         [JsonProperty("notify_users_when_the_tournament_ends")]
-        public bool NotifyUsersWhenTheTournamentEnds { get; private set; }
+        public Nullable<bool> NotifyUsersWhenTheTournamentEnds { get; set; }
 
         [JsonProperty("open_signup")]
-        public bool OpenSignup { get; private set; }
+        public Nullable<bool> OpenSignup { get; set; }
 
         [JsonProperty("participants_count")]
-        public string ParticipantsCount { get; private set; }
+        public Nullable<long> ParticipantsCount { get; set; }
 
         [JsonProperty("prediction_method")]
-        public string PredictionMethod { get; private set; }
+        public Nullable<long> PredictionMethod { get; set; }
 
         [JsonProperty("predictions_opened_at")]
-        public string PredictionsOpenedAt { get; private set; }
+        public string PredictionsOpenedAt { get; set; }
 
         [JsonProperty("private")]
-        public bool Private { get; private set; }
+        public Nullable<bool> Private { get; set; }
 
         [JsonProperty("progress_meter")]
-        public string ProgressMeter { get; private set; }
+        public Nullable<long> ProgressMeter { get; set; }
 
         [JsonProperty("pts_for_bye")]
-        public string PtsForBye { get; private set; }
+        public string PtsForBye { get; set; }
 
         [JsonProperty("pts_for_game_tie")]
-        public string PtsForGameTie { get; private set; }
+        public string PtsForGameTie { get; set; }
 
         [JsonProperty("pts_for_game_win")]
-        public string PtsForGameWin { get; private set; }
+        public string PtsForGameWin { get; set; }
 
         [JsonProperty("pts_for_match_tie")]
-        public string PtsForMatchTie { get; private set; }
+        public string PtsForMatchTie { get; set; }
 
         [JsonProperty("pts_for_match_win")]
-        public string PtsForMatchWin { get; private set; }
+        public string PtsForMatchWin { get; set; }
 
         [JsonProperty("quick_advance")]
-        public bool QuickAdvance { get; private set; }
+        public Nullable<bool> QuickAdvance { get; set; }
 
         [JsonProperty("ranked_by")]
-        public string RankedBy { get; private set; }
+        public string RankedBy { get; set; }
 
         [JsonProperty("require_score_agreement")]
-        public bool RequireScoreAgreement { get; private set; }
+        public Nullable<bool> RequireScoreAgreement { get; set; }
 
         [JsonProperty("rr_pts_for_game_tie")]
-        public string RrPtsForGameTie { get; private set; }
+        public string RrPtsForGameTie { get; set; }
 
         [JsonProperty("rr_pts_for_game_win")]
-        public string RrPtsForGameWin { get; private set; }
+        public string RrPtsForGameWin { get; set; }
 
         [JsonProperty("rr_pts_for_match_tie")]
-        public string RrPtsForMatchTie { get; private set; }
+        public string RrPtsForMatchTie { get; set; }
 
         [JsonProperty("rr_pts_for_match_win")]
-        public string RrPtsForMatchWin { get; private set; }
+        public string RrPtsForMatchWin { get; set; }
 
         [JsonProperty("sequential_pairings")]
-        public bool SequentialPairings { get; private set; }
+        public Nullable<bool> SequentialPairings { get; set; }
 
         [JsonProperty("show_rounds")]
-        public bool ShowRounds { get; private set; }
+        public Nullable<bool> ShowRounds { get; set; }
 
         [JsonProperty("signup_cap")]
-        public string SignupCap { get; private set; }
+        public string SignupCap { get; set; }
 
         [JsonProperty("start_at")]
-        public string StartAt { get; private set; }
+        public string StartAt { get; set; }
 
         [JsonProperty("started_at")]
-        public string StartedAt { get; private set; }
+        public string StartedAt { get; set; }
 
         [JsonProperty("started_checking_in_at")]
-        public string StartedCheckingInAt { get; private set; }
+        public string StartedCheckingInAt { get; set; }
 
         [JsonProperty("state")]
-        public string State { get; private set; }
+        public string State { get; set; }
 
         [JsonProperty("swiss_rounds")]
-        public string SwissRounds { get; private set; }
+        public Nullable<long> SwissRounds { get; set; }
 
         [JsonProperty("teams")]
-        public bool Teams { get; private set; }
+        public Nullable<bool> Teams { get; set; }
 
         [JsonProperty("tie_breaks")]
-        public List<string> TieBreaks { get; private set; }
+        public List<string> TieBreaks { get; set; }
 
+        // types: single_elimination, double_elimination, round_robin, swiss
+        // stages not supported by api yet
         [JsonProperty("tournament_type")]
-        public string TournamentType { get; private set; }
+        public string TournamentType { get; set; }
 
         [JsonProperty("updated_at")]
-        public string UpdatedAt { get; private set; }
+        public string UpdatedAt { get; set; }
 
         [JsonProperty("url")]
-        public string Url { get; private set; }
+        public string Url { get; set; }
 
         [JsonProperty("description_source")]
-        public string DescriptionSource { get; private set; }
+        public string DescriptionSource { get; set; }
 
         [JsonProperty("subdomain")]
-        public string Subdomain { get; private set; }
+        public string Subdomain { get; set; }
 
         [JsonProperty("full_challonge_url")]
-        public string FullChallongeUrl { get; private set; }
+        public string FullChallongeUrl { get; set; }
 
         [JsonProperty("live_image_url")]
-        public string LiveImageUrl { get; private set; }
+        public string LiveImageUrl { get; set; }
 
         [JsonProperty("sign_up_url")]
-        public string SignUpUrl { get; private set; }
+        public string SignUpUrl { get; set; }
 
         [JsonProperty("review_before_finalizing")]
-        public bool ReviewBeforeFinalizing { get; private set; }
+        public Nullable<bool> ReviewBeforeFinalizing { get; set; }
 
         [JsonProperty("accepting_predictions")]
-        public bool AcceptingPredictions { get; private set; }
+        public Nullable<bool> AcceptingPredictions { get; set; }
 
         [JsonProperty("participants_locked")]
-        public bool ParticipantsLocked { get; private set; }
+        public Nullable<bool> ParticipantsLocked { get; set; }
 
         [JsonProperty("game_name")]
-        public string GameName { get; private set; }
+        public string GameName { get; set; }
 
         [JsonProperty("participants_swappable")]
-        public bool ParticipantsSwappable { get; private set; }
+        public Nullable<bool> ParticipantsSwappable { get; set; }
 
         [JsonProperty("team_convertable")]
-        public bool TeamConvertable { get; private set; }
+        public Nullable<bool> TeamConvertable { get; set; }
 
         [JsonProperty("group_stages_were_started")]
-        public bool GroupStagesWereStarted { get; private set; }
+        public Nullable<bool> GroupStagesWereStarted { get; set; }
 
 
     }

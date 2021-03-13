@@ -500,10 +500,16 @@ namespace OpenSkillBot.BotCommands
         // helpers
 
         public static Team strToTeam(string teamStr) {
+            teamStr = Regex.Replace(teamStr, ", (?=(?:[^']*'[^']*')*[^']*$)", ",");
             var split = Regex.Split(teamStr, ",(?=(?:[^']*'[^']*')*[^']*$)");
             var players = new Player[split.Length];
 
             for (int i = 0; i < split.Length; ++i) {
+
+                // remove speech marks
+                if (split[i][0] == '"' && split[i][split[i].Length - 1] == '"') 
+                    split[i] = split[i].Substring(1, split[i].Length - 2);
+
                 var player = PlayerManagementCommands.FindPlayer(split[i]);
                 if (player != null) {
                     players[i] = player;

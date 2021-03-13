@@ -7,12 +7,14 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using OpenSkillBot.Tournaments;
+using System.Text.RegularExpressions;
 
 namespace OpenSkillBot.BotCommands
 {
     [RequirePermittedRole]
     [Name("Tournament Commands")]
     public class TournamentCommands : ModuleBase<SocketCommandContext> {
+
         [RequirePermittedRole]
         [Command("createtournament")]
         [Alias(new string[] {"ct"})]
@@ -20,58 +22,39 @@ namespace OpenSkillBot.BotCommands
         public async Task CreateTournamentCommand(
             [Summary("The name of the tournament.")] string tournamentName,
             [Summary("The UTC time of the tournament, in the form HHMM (ie, 1600 for 4PM UTC)")] ushort utcTime,
-            [Summary("The calendar date of the tournament in DD/MM/YYYY, DD/MM/YY, or DD. The missing fields will be autofilled.")] string calendarDate = ""
+            [Summary("The calendar date of the tournament in DD/MM/YYYY, DD/MM, or DD. The missing fields will be autofilled.")] string calendarDate = ""
         ) {
-            var now = DateTime.UtcNow;
-
-            // parse date
-            int[] date = {now.Day, now.Month, now.Year};
-            var dateSpl = calendarDate.Split('/', 3, StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < dateSpl.Length; ++i) {
-                date[i] = Convert.ToInt32(dateSpl[i]);
-            }
-
-            // Auto date
-            var time = new DateTime(
-                date[2], date[1], date[0],
-                (utcTime / 100) % 24,
-                (utcTime % 100) % 60,
-                0);
-
-            if (dateSpl.Length >= 3 && time < now) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("The tournament cannot be in the past."));
-                return;
-            }
-
-            // Delegate function to add the required amount of time given how many parameters were given
-            Func<DateTime, int, DateTime> Add;
-            switch (dateSpl.Length) {
-                case 0:
-                    Add = AddDays;
-                break;
-                case 1:
-                    Add = AddMonths;
-                break;
-                case 2:
-                    Add = AddYears;
-                break;
-                default: // default case to prevent compiler from complaining of missing case
-                    Add = (a,b) => DateTime.Now;
-                    break;
-            }
-
-            // Keep adding until the tournament is in the future.
-            while (time < now) {
-                time = Add(time, 1);
-            }
-                
-            var tourney = new Tournament(time, tournamentName, TournamentType.DoubleElim);
+            var tourney = Tournament.GenerateTournament(tournamentName, utcTime, calendarDate);
 
             await Program.Controller.AddTournament(tourney);
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
                 $"Created the tournament **{tournamentName}**:" + Environment.NewLine + Environment.NewLine +
                 $"Date: {tourney.GetTimeStr()}" + Environment.NewLine
+            ));
+
+            if (Program.Controller.Tournaments.Count == 1) await SetCurrentTournamentCommand(1);
+        }
+
+        [RequirePermittedRole]
+        [Command("createchallongetournament")]
+        [Alias(new string[] {"cct"})]
+        [Summary("Creates a tournament and sets it up on Challonge.")]
+        public async Task CreateTournamentCommand(
+            [Summary("The name of the tournament.")] string tournamentName,
+            [Summary("The format of the tournament.")] string format,
+            [Summary("The UTC time of the tournament, in the form HHMM (ie, 1600 for 4PM UTC)")] ushort utcTime,
+            [Summary("The calendar date of the tournament in DD/MM/YYYY, DD/MM, or DD. The missing fields will be autofilled.")] string calendarDate = ""
+        ) {
+            var tourney = Tournament.GenerateTournament(tournamentName, utcTime, calendarDate, format);
+            var ct = await tourney.SetUpChallonge();
+
+            await Program.Controller.AddTournament(tourney);
+
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                $"Created the tournament **{tournamentName}**:" + Environment.NewLine + Environment.NewLine +
+                $"Date: {tourney.GetTimeStr()}" + Environment.NewLine +
+                $"Challonge URL: {ct.FullChallongeUrl}"
             ));
 
             if (Program.Controller.Tournaments.Count == 1) await SetCurrentTournamentCommand(1);
@@ -125,7 +108,7 @@ namespace OpenSkillBot.BotCommands
         [Alias(new string[] {"ap"})]
         [Summary("Adds participants to the selected tournament.")]
         public async Task AddParticipantsCommand(
-            [Summary("A comma separated list of the players to add.")][Remainder] string players) {
+            [Summary("A space-separated list of the players to add. Separate players in a team with a comma.")][Remainder] string players) {
             
             if (selectedTourney == null) {
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
@@ -138,26 +121,32 @@ namespace OpenSkillBot.BotCommands
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding players to the tournament **{selectedTourney.Name}**..."));
 
             var playerNames = new StringBuilder();
-            var playersSpl = players.Split(',');
-            foreach (var p in playersSpl) {
-                var pl = PlayerManagementCommands.FindPlayer(p);
-                if (pl == null) await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not find the player **{p}**."));
-                else {
-                    if (await selectedTourney.AddPlayer(pl, true))
-                        playerNames.Append(pl.IGN + Environment.NewLine);
+
+            var playersSpl = Regex.Split(players, " (?=(?:[^']*'[^']*')*[^']*$)");
+
+            foreach (var t in playersSpl) {
+                try {
+                    // get team
+                    Team team = SkillCommands.strToTeam(t);
+
+                    if ((await selectedTourney.AddTeam(team, true)).Item1)
+                        playerNames.Append(team + Environment.NewLine);
                     else
-                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"**{pl.IGN}** is already in the bracket."));
+                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"**{team}** is already in the bracket."));
+                }
+                catch (Exception e) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                    continue;
                 }
             }
 
-            Program.Controller.SerializeTourneys();
             await selectedTourney.SendMessage();
 
             await msg.DeleteAsync();
 
             if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
                 await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
-                    $"Added the following players to the tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
+                    $"Added the following players/teams to the tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
                     playerNames.ToString()));
             else
                 await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
@@ -168,7 +157,7 @@ namespace OpenSkillBot.BotCommands
         [Alias(new string[] {"rp"})]
         [Summary("Removes participants from the selected tournament.")]
         public async Task RemoveParticipantsCommand(
-            [Summary("A comma separated list of the players to remove.")][Remainder] string players) {
+            [Summary("A space-separated list of the players to add. Separate players in a team with a comma.")][Remainder] string players) {
             
             if (selectedTourney == null) {
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
@@ -178,29 +167,32 @@ namespace OpenSkillBot.BotCommands
             }
             var msg = await Program.DiscordIO.SendMessage("", 
                 Context.Channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding players to the tournament **{selectedTourney.Name}**..."));
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Removing players from the tournament **{selectedTourney.Name}**..."));
 
             var playerNames = new StringBuilder();
-            var playersSpl = players.Split(',');
-            foreach (var p in playersSpl) {
-                var pl = PlayerManagementCommands.FindPlayer(p);
-                if (pl == null) await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not find the player **{p}**."));
-                else {
-                    if (await selectedTourney.RemovePlayer(pl, true))
-                        playerNames.Append(pl.IGN + Environment.NewLine);
+            var playersSpl = Regex.Split(players, " (?=(?:[^']*'[^']*')*[^']*$)");
+
+            foreach (var t_str in playersSpl) {
+                try {
+                    var t = SkillCommands.strToTeam(t_str);
+
+                    if (await selectedTourney.RemoveTeam(t, true))
+                        playerNames.Append(t + Environment.NewLine);
                     else
-                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not remove **{pl.IGN}** as they were not in the tournament."));
+                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not remove **{t}** as they were not in the tournament."));
+                } catch (Exception e) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                    continue;
                 }
             }
 
-            Program.Controller.SerializeTourneys();
             await selectedTourney.SendMessage();
 
             await msg.DeleteAsync();
 
             if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
                 await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
-                    $"Removed the following players from tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
+                    $"Removed the following players/teams from tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
                     playerNames.ToString()));
             else
                 await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
@@ -239,6 +231,37 @@ namespace OpenSkillBot.BotCommands
         }
 
         [RequirePermittedRole]
+        [Command("rebuildparticipants")]
+        [Alias(new string[] { "rb", "rebuild" })]
+        [Summary("Fetches the list of participants from Challonge for the current tournament, then updates the local list of participants.")]
+        public async Task RebuildParticipantsCommand() {
+            if (selectedTourney == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
+                );
+                return;
+            }
+
+            var msg = await Program.DiscordIO.SendMessage("", 
+                Context.Channel, 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Rebuilding the participants list of **{selectedTourney.Name}**..."));
+
+            // rebuild
+            try {
+                await selectedTourney.RebuildParticipantsList();
+            } catch (Exception e) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Aborted rebuilding the participants list because of the following error:"
+                + Environment.NewLine + Environment.NewLine + e.Message));
+                await msg.DeleteAsync();
+
+                return;
+            }
+
+            await msg.DeleteAsync();
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Rebuilt the participants of list of {selectedTourney.Name}."));
+        }
+
+        [RequirePermittedRole]
         [Command("tournamentfullmatch")]
         [Alias(new string[] { "tfm", "cfm" })]
         [Summary("Calculates a full match between two teams, and reports it to the current tournament.")]
@@ -255,16 +278,6 @@ namespace OpenSkillBot.BotCommands
         }
 
 
-        #region helpers
-        static DateTime AddDays(DateTime time, int days) {
-            return time.AddDays(days);
-        }
-        static DateTime AddMonths(DateTime time, int months) {
-            return time.AddMonths(months);
-        }
-        static DateTime AddYears(DateTime time, int years) {
-            return time.AddYears(years);
-        }
-        #endregion
+
     }
 }

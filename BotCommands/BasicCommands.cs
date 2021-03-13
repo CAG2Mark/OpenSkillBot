@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using Discord.Rest;
 using Discord.WebSocket;
+using System.Collections;
 
 namespace OpenSkillBot.BotCommands
 {
@@ -21,9 +22,9 @@ namespace OpenSkillBot.BotCommands
             var timeSent = Context.Message.Timestamp;
             var timeNow = DateTimeOffset.UtcNow;            
 
-            var diff = Math.Abs(timeNow.Ticks - timeSent.Ticks) / TimeSpan.TicksPerMillisecond;
+            var diff = Math.Abs((timeNow - timeSent).Milliseconds);
 
-            return ReplyAsync("Ping received. Latency was " + diff.ToString() + "ms");
+            return ReplyAsync("Ping received. Latency was " + diff + "ms");
         }
 
         // These two commands were implemented for fun and as an easter egg. They provide no functionality.
@@ -214,19 +215,34 @@ namespace OpenSkillBot.BotCommands
             
             foreach (var module in Program.DiscordIO.Commands.Modules)
             {
-                string description = null;
+                bool hasSentFirst = false;
+
+                string name = "---" + module.Name.ToUpper() + "---";
+
+                string description = "";
                 foreach (var cmd in module.Commands)
                 {
+
                     PreconditionResult result = cmd.CheckPreconditionsAsync(Context).Result;
-                    if (result.IsSuccess && !cmd.Summary.Contains("(Easter Egg)"))
-                        description += $"**{prefix}{cmd.Name}**: _{cmd.Summary}_\n";
+                    if (result.IsSuccess && !cmd.Summary.Contains("(Easter Egg)")) {
+                        var append = $"**{prefix}{cmd.Name}**: _{cmd.Summary}_\n";
+                        if (append.Length + description.Length > 1024) {
+                            builder.AddField(x => {
+                                x.Name = name;
+                                x.Value = description;
+                                x.IsInline = false;
+                            });
+                            description = "";
+                            hasSentFirst = true;
+                        }
+                        description += append;
+                    }
                 }
                 
                 if (!string.IsNullOrWhiteSpace(description))
                 {
-                    builder.AddField(x =>
-                    {
-                        x.Name = module.Name;
+                    builder.AddField(x => {
+                        x.Name = hasSentFirst ? "..." : name;
                         x.Value = description;
                         x.IsInline = false;
                     });
@@ -234,6 +250,36 @@ namespace OpenSkillBot.BotCommands
             }
 
             return ReplyAsync("", false, builder.Build());
+        }
+
+        public static string GenerateCommandTitle(CommandInfo cmd) {
+            string prefix = Program.prefix.ToString();
+            return "**" + prefix + cmd.Name + "** " + 
+            (cmd.Aliases.Count == 1 ? "" : $"(Alias{(cmd.Aliases.Count == 2 ? "" : "es")}: !" + string.Join(", !", cmd.Aliases.Skip(1)) + ")");
+        }
+
+        public static string GenerateHelpText(CommandInfo cmd) {
+            string prefix = Program.prefix.ToString();
+            var sb = new StringBuilder();
+
+            // title
+            sb.Append(Environment.NewLine);
+
+            // parameters
+            if (cmd.Parameters.Count != 0) {
+                sb.Append($"Usage: {prefix}{cmd.Name} " +  
+                    $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[`" + p.Name + "` = " + p.DefaultValue + "]" : "<`" + p.Name + "`>"))}{Environment.NewLine}"
+                    );
+
+                foreach (var p in cmd.Parameters) {
+                    sb.Append($"`{p.Name}`: *{p.Summary}*{Environment.NewLine}");
+                }
+                sb.Append(Environment.NewLine);
+            }
+
+            // summary
+            sb.Append(cmd.Summary + Environment.NewLine + Environment.NewLine);
+            return sb.ToString();
         }
 
         public static string GenerateHelpText(string command) {
@@ -248,13 +294,9 @@ namespace OpenSkillBot.BotCommands
 
                 if (cmd.Summary.Contains("(Easter Egg)")) continue;
 
-                sb.Append("**" + prefix + cmd.Name + "** (Aliases: !" + string.Join(", !", cmd.Aliases) + ")" + Environment.NewLine);
-                if (cmd.Parameters.Count != 0) {
-                    sb.Append($"*Usage: {prefix}{cmd.Name} " +  
-                        $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[" + p.Name + " = " + p.DefaultValue + "]" : "<" + p.Name + ">"))}*");
-                    sb.Append(Environment.NewLine);
-                }
-                sb.Append(cmd.Summary + Environment.NewLine + Environment.NewLine);
+                sb.Append(GenerateCommandTitle(cmd));
+                sb.Append(Environment.NewLine);
+                sb.Append(GenerateHelpText(cmd));
             }
 
             return sb.ToString();
@@ -278,7 +320,7 @@ namespace OpenSkillBot.BotCommands
             var builder = new EmbedBuilder()
             {
                 Color = new Color(114, 137, 218),
-                Description = $"Found **{result_.Count}** command(s):"
+                Description = $"Found **{result_.Count}** command{(result_.Count == 1 ? "" : "s")}:"
             };
 
             foreach (var match in result_)
@@ -287,17 +329,8 @@ namespace OpenSkillBot.BotCommands
 
                 builder.AddField(x =>
                 {
-                    x.Name = prefix + cmd.Name + " (Aliases: !" + string.Join(", !", cmd.Aliases) + ")";
-                    if (cmd.Parameters.Count != 0) {
-                        x.Value +=  $"Usage: {prefix}{cmd.Name} " +  
-                            $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[" + p.Name + " = " + p.DefaultValue + "]" : "<" + p.Name + ">"))}{Environment.NewLine}";
-
-                        foreach (var p in cmd.Parameters) {
-                            x.Value += $"{p.Name}: *{p.Summary}*{Environment.NewLine}";
-                        }
-                        x.Value += Environment.NewLine;
-                    }
-                    x.Value += $"{cmd.Summary}";
+                    x.Name = GenerateCommandTitle(cmd);
+                    x.Value = GenerateHelpText(cmd);
                     x.IsInline = false;
                 });
             }
