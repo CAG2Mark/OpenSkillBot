@@ -87,7 +87,7 @@ namespace OpenSkillBot.Tournaments
             return ct;
         }
 
-        public async Task RebuildParticipantsList() {
+        public async Task RebuildIndex() {
             if (!IsChallongeLinked) return;
             var participants = await Program.Challonge.GetParticipants((ulong)this.ChallongeId);
             // don't replace the actual value until it the integrity of the participants list is verified
@@ -125,7 +125,7 @@ namespace OpenSkillBot.Tournaments
                 t.ChallongeId = (ulong)cp.Id;
 
                 // rebuild for safety
-                await RebuildParticipantsList();
+                await RebuildIndex();
             }
 
             Program.Controller.SerializeTourneys();
@@ -143,7 +143,7 @@ namespace OpenSkillBot.Tournaments
                     if (IsChallongeLinked)
                         await Program.Challonge.DeleteParticipant((ulong)ChallongeId, team.ChallongeId);
                         // rebuild for safety
-                        await RebuildParticipantsList();
+                        await RebuildIndex();
                     result = true;
                     break;
                 }

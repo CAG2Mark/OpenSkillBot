@@ -109,6 +109,32 @@ namespace OpenSkillBot.ChallongeAPI {
         }
 
         /// <summary>
+        /// Returns the list of matches for a given tournament.
+        /// </summary>
+        /// <param name="tournamentId">The ID of the tournament.</param>
+        /// <returns></returns>
+        public async Task<List<ChallongeMatch>> GetMatches(ulong tournamentId) {
+            var res = await httpGet($"tournaments/{tournamentId}/matches.json");
+
+            // convert received format into the proper format
+            List<ChallongeMatch> returns = new List<ChallongeMatch>();
+
+            try {
+                List<Dictionary<string, ChallongeMatch>> des = 
+                    JsonConvert.DeserializeObject<List<Dictionary<string, ChallongeMatch>>>(res);
+                foreach (var dict in des) {
+                    returns.Add(dict["match"]);
+                }
+
+                return returns;
+            }
+            catch (JsonException) {
+                ChallongeError err = JsonConvert.DeserializeObject<ChallongeError>(res);
+                throw new ChallongeException(err.Errors);
+            }
+        }
+
+        /// <summary>
         /// Creates a Challonge tournament.
         /// </summary>
         /// <param name="tournament">Predefined values of the tournament.</param>

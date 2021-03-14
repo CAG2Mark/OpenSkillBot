@@ -79,7 +79,11 @@ namespace OpenSkillBot.BotCommands
             await ReplyAsync("", false, eb.Build());
         }
 
-        static Tournament selectedTourney = null;
+        // lazy method to just reference the selected tournament in the controller
+        static Tournament selectedTourney {
+            get => Program.Controller.Tourneys.ActiveTournament;
+            set => Program.Controller.Tourneys.ActiveTournament = value;
+        }
 
         [RequirePermittedRole]
         [Command("setcurrenttournament")]
@@ -227,13 +231,15 @@ namespace OpenSkillBot.BotCommands
                 return;
             }
 
+            await Program.Controller.StartTournament(selectedTourney);
+
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Started the tournament {selectedTourney.Name}."));
         }
 
         [RequirePermittedRole]
-        [Command("rebuildparticipants")]
-        [Alias(new string[] { "rb", "rebuild" })]
-        [Summary("Fetches the list of participants from Challonge for the current tournament, then updates the local list of participants.")]
+        [Command("rebuildindex")]
+        [Alias(new string[] { "rbi", "rebuild" })]
+        [Summary("Fetches the list of participants and matches from Challonge for the current tournament, then updates the local list of participants.")]
         public async Task RebuildParticipantsCommand() {
             if (selectedTourney == null) {
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
@@ -244,13 +250,13 @@ namespace OpenSkillBot.BotCommands
 
             var msg = await Program.DiscordIO.SendMessage("", 
                 Context.Channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Rebuilding the participants list of **{selectedTourney.Name}**..."));
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Rebuilding the participants and matches index of **{selectedTourney.Name}**..."));
 
             // rebuild
             try {
-                await selectedTourney.RebuildParticipantsList();
+                await selectedTourney.RebuildIndex();
             } catch (Exception e) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Aborted rebuilding the participants list because of the following error:"
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Aborted rebuilding the index because of the following error:"
                 + Environment.NewLine + Environment.NewLine + e.Message));
                 await msg.DeleteAsync();
 
@@ -258,7 +264,7 @@ namespace OpenSkillBot.BotCommands
             }
 
             await msg.DeleteAsync();
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Rebuilt the participants of list of {selectedTourney.Name}."));
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Rebuilt the index of {selectedTourney.Name}."));
         }
 
         [RequirePermittedRole]
@@ -270,10 +276,11 @@ namespace OpenSkillBot.BotCommands
         ) {
             if (!Program.Controller.IsTourneyActive) {
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
-                    "No tournament is currently running.")
+                    $"The selected tournament **{selectedTourney.Name}** is not active.")
                 );
                 return;
             }
+            
             await ReplyAsync("", false, (await SkillCommands.FullMatch(team1, team2, result)).Item2);
         }
 

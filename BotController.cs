@@ -98,8 +98,28 @@ namespace OpenSkillBot
     }
     public class TourneyStruct {
         public List<Tournament> Tournaments { get; set; } = new List<Tournament>();
-        // for O(1) lookup of matches :)
-        public Tournament ActiveTournament { get; set; }
+
+        // referential integrity after restart
+        private Tournament activeTournament;
+        [JsonIgnore]
+        public Tournament ActiveTournament {
+            get {
+                if (activeTournament == null) {
+                    // search
+                    activeTournament = Tournaments.FirstOrDefault(t => t.Id.Equals(activeTournamentId));
+                }
+                return activeTournament;
+            }
+            set {
+                activeTournament = value;
+                activeTournamentId = value.Id;
+                Program.Controller.SerializeTourneys();
+            }
+        }
+
+        [JsonProperty]
+        private string activeTournamentId { get; set; }
+
     }
 
     public class BotController
@@ -341,7 +361,7 @@ namespace OpenSkillBot
         public List<Tournament> Tournaments { get => Tourneys.Tournaments; set => Tourneys.Tournaments = value; }
         public TourneyStruct Tourneys = new TourneyStruct();
 
-        public bool IsTourneyActive => Tourneys.ActiveTournament != null;
+        public bool IsTourneyActive => Tourneys.ActiveTournament.IsActive;
         public async Task AddTournament(Tournament t) {
             Tournaments.Add(t);
             SerializeTourneys();
@@ -355,17 +375,18 @@ namespace OpenSkillBot
         }
 
         public async Task<bool> StartTournament(Tournament t) {
-            if (Tourneys.ActiveTournament != null) return false;
+            if (t.IsActive) return false;
             await t.SetIsActive(true);
-            Tourneys.ActiveTournament = t;
+            // Tourneys.ActiveTournament = t;
             SerializeTourneys();
             return true;
         }
 
         public async Task<bool> ForceStop(Tournament t) {
-            if (Tourneys.ActiveTournament != null) return false;
+            // if (!Tourneys.ActiveTournament.IsActive) return false;
             await t.SetIsActive(false);
-            Tourneys.ActiveTournament = null;
+            
+            SerializeTourneys();
 
             return true;
         }
