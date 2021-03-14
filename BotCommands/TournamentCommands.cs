@@ -264,7 +264,38 @@ namespace OpenSkillBot.BotCommands
             }
 
             await msg.DeleteAsync();
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Rebuilt the index of {selectedTourney.Name}."));
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Rebuilt the index of **{selectedTourney.Name}**."));
+        }
+
+        [RequirePermittedRole]
+        [Command("tournamentstartmatch")]
+        [Alias(new string[] { "tsm", "csm" })]
+        [Summary("Starts a tournament match between two teams.")]
+        public async Task StartMatchCommand(
+            [Summary("The first team.")] string team1, 
+            [Summary("The second team.")] string team2, 
+            [Summary("Whether or not to force start the match even if the player is already playing.")] bool force = false
+        ) {
+            if (!Program.Controller.IsTourneyActive) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    $"The selected tournament **{selectedTourney.Name}** is not active.")
+                );
+                return;
+            }
+
+            var res = await SkillCommands.StartMatch(team1, team2, force, true);
+            await ReplyAsync("", false, res.Item2);   
+            try {
+                await selectedTourney.StartMatch(res.Item1);
+                if (selectedTourney.IsChallongeLinked) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                        $"Marked the match **{res.Item1.Team1}** vs **{res.Item1.Team2}** as underway on Challonge."
+                    ));
+                }
+            }
+            catch (Exception ex) {
+                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(ex.Message));
+            }     
         }
 
         [RequirePermittedRole]
@@ -280,8 +311,23 @@ namespace OpenSkillBot.BotCommands
                 );
                 return;
             }
-            
-            await ReplyAsync("", false, (await SkillCommands.FullMatch(team1, team2, result)).Item2);
+        
+            var res = await SkillCommands.FullMatch(team1, team2, result, true);
+            await ReplyAsync("", false, res.Item2);
+
+            if (res.Item1.IsDraw) return;
+
+            try {
+                await selectedTourney.AddMatch(res.Item1);
+                if (selectedTourney.IsChallongeLinked) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                        $"Reported **{res.Item1.Winner}** as the winner on Challonge."
+                    ));
+                }
+            }
+            catch (Exception ex) {
+                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(ex.Message));
+            }
         }
 
 

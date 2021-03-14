@@ -53,6 +53,8 @@ namespace OpenSkillBot.Skill {
 
         public bool IsDraw { get; set; }
 
+        public bool IsCancelled { get; set; }
+
         [JsonProperty]
         public bool IsTourney { get; private set; } = false;
         public string TourneyId { get; set; }
@@ -75,13 +77,18 @@ namespace OpenSkillBot.Skill {
                 await Program.DiscordIO.EditMessage(msg, "", embed);
             }
         }
+
+        public async Task UndeafenPlayers() {
+            foreach (var p in Winner.Players) await p.Undeafen();
+            foreach (var p in Loser.Players) await p.Undeafen();
+        }
+
         protected async Task action()
         {
             TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
             await sendMessage();
             // undeafen the users
-            foreach (var p in Winner.Players) await p.Undeafen();
-            foreach (var p in Loser.Players) await p.Undeafen();
+            await UndeafenPlayers();
         }
 
         protected void undoAction()
@@ -89,7 +96,7 @@ namespace OpenSkillBot.Skill {
         }
 
         // Currently only supports matches between two teams
-        public MatchAction(Team winner, Team loser, bool isDraw = false, bool isTourney = false)
+        public MatchAction(Team winner, Team loser, bool isDraw = false, bool isTourney = false, bool cancelled = false)
         {
             ActionTime = DateTime.UtcNow;
             this.ActionId = Player.RandomString(20);
@@ -101,6 +108,8 @@ namespace OpenSkillBot.Skill {
             this.IsDraw = isDraw;
 
             this.IsTourney = isTourney;
+
+            this.IsCancelled = IsCancelled;
 
             setOldPlayerDatas();
         }
@@ -132,9 +141,6 @@ namespace OpenSkillBot.Skill {
         public List<OldPlayerData> OldPlayerDatas = new List<OldPlayerData>();
 
         public DateTime ActionTime;
-        private Team winner;
-        private Team loser;
-
 
         // Dont serialise this to avoid infinite recursion. Instead, repopulate on deserialization.
         [JsonIgnore]
@@ -149,6 +155,8 @@ namespace OpenSkillBot.Skill {
 
         public async Task DoAction(bool invokeChange = true)
         {
+            if (IsCancelled) return;
+
             setOldPlayerDatas();
             await action();
             if (invokeChange) {
@@ -170,6 +178,8 @@ namespace OpenSkillBot.Skill {
             int count = this.Winner.Players.Count + this.Loser.Players.Count;
 
             count += mergeForwardOld();
+
+            this.IsCancelled = true;
             // undoAction() just does extra things that may not be covered by the default one
             undoAction();
 

@@ -142,10 +142,10 @@ namespace OpenSkillBot.Skill
 
                 // todo: make this a more general purpose function..
                 for (int j = 0; j < changeCount; j++) {
-                    for (int i = 0; i < players_byTs.Count - 1; i++) {
-                        if (players_byTs[i].DisplayedSkill.CompareTo(players_byTs[i + 1].DisplayedSkill) < 0) {
-                            var temp = players_byTs[i + 1];
-                            players_byTs[i + 1] = players_byTs[i];
+                    for (int i = players_byTs.Count - j - 1; i > 0; --i) {
+                        if (players_byTs[i].DisplayedSkill > players_byTs[i - 1].DisplayedSkill) {
+                            var temp = players_byTs[i - 1];
+                            players_byTs[i - 1] = players_byTs[i];
                             players_byTs[i] = temp;
                         }
                     }

@@ -113,8 +113,11 @@ namespace OpenSkillBot.ChallongeAPI {
         /// </summary>
         /// <param name="tournamentId">The ID of the tournament.</param>
         /// <returns></returns>
-        public async Task<List<ChallongeMatch>> GetMatches(ulong tournamentId) {
-            var res = await httpGet($"tournaments/{tournamentId}/matches.json");
+        public async Task<List<ChallongeMatch>> GetMatches(ulong tournamentId, string state = "all") {
+            var p = new Dictionary<string,string>();
+            p.Add("state", state);
+
+            var res = await httpGet($"tournaments/{tournamentId}/matches.json", p);
 
             // convert received format into the proper format
             List<ChallongeMatch> returns = new List<ChallongeMatch>();
@@ -135,6 +138,47 @@ namespace OpenSkillBot.ChallongeAPI {
         }
 
         /// <summary>
+        /// Updates a Challonge match.
+        /// </summary>
+        /// <param name="tournamentId">The ID of the tournament the match belongs to.</param>
+        /// <param name="matchId">The ID of the match.</param>
+        /// <param name="match">The match object containing the values to update.</param>
+        /// <returns>The updated match from Challonge.</returns>
+        public async Task<ChallongeMatch> UpdateMatch(ulong tournamentId, ulong matchId, ChallongeMatch match) {
+            var p = new Dictionary<string,object>();
+            p.Add("match", match);
+
+            var res = await httpPut($"tournaments/{tournamentId}/matches/{matchId}.json", p);
+            var des = JsonConvert.DeserializeObject<Dictionary<string, ChallongeMatch>>(res);
+
+            return des["match"];   
+        }
+
+        /// <summary>
+        /// Marks a Challonge match as underway.
+        /// </summary>
+        /// <returns></returns>
+        public async Task<ChallongeMatch> MarkMatchUnderway(ulong tournamentId, ulong matchId) {
+
+            var res = await httpPost($"tournaments/{tournamentId}/matches/{matchId}/mark_as_underway.json");
+            var des = JsonConvert.DeserializeObject<Dictionary<string, ChallongeMatch>>(res);
+
+            return des["match"];   
+        }
+
+        /// <summary>
+        /// Unmarks a Challonge match as underway.
+        /// </summary>
+        /// <returns></returns>
+        public async Task<ChallongeMatch> UnmarkMatchUnderway(ulong tournamentId, ulong matchId) {
+
+            var res = await httpPost($"tournaments/{tournamentId}/matches/{matchId}/unmark_as_underway.json");
+            var des = JsonConvert.DeserializeObject<Dictionary<string, ChallongeMatch>>(res);
+
+            return des["match"];   
+        }
+
+        /// <summary>
         /// Creates a Challonge tournament.
         /// </summary>
         /// <param name="tournament">Predefined values of the tournament.</param>
@@ -147,6 +191,14 @@ namespace OpenSkillBot.ChallongeAPI {
             var des = JsonConvert.DeserializeObject<Dictionary<string, ChallongeTournament>>(res);
 
             return des["tournament"];   
+        }
+
+        public async Task StartTournament(ulong tournamentId) {
+            var p = new Dictionary<string,object>();
+            p.Add("include_participants", 1);
+            p.Add("include_matches", 1);
+
+            var res = await httpPost($"tournaments/{tournamentId}/start.json", p);
         }
 
         #endregion
@@ -194,6 +246,29 @@ namespace OpenSkillBot.ChallongeAPI {
             HttpContent strContent = new StringContent(toSend, Encoding.UTF8, "application/json");
 
             var resp = await client.PostAsync(url + endpoint, strContent);
+            var content = await resp.Content.ReadAsStringAsync();
+
+            return content;
+        } 
+
+        /// <summary>
+        /// Makes an HTTP PUT request.
+        /// </summary>
+        /// <param name="parameters">The parameters to send to the API endpoint.</param>
+        /// <param name="endpoint">The Challonge API endpoint, starting after /v1/.</param>
+        /// <returns></returns>
+        private async Task<string> httpPut(string endpoint, Dictionary<string,object> parameters = null) {
+
+            if (parameters == null) parameters = new Dictionary<string, object>();
+            parameters.Add("api_key", token);
+
+            var toSend = JsonConvert.SerializeObject(parameters, Formatting.None, new JsonSerializerSettings {
+                NullValueHandling = NullValueHandling.Ignore
+            });
+
+            HttpContent strContent = new StringContent(toSend, Encoding.UTF8, "application/json");
+
+            var resp = await client.PutAsync(url + endpoint, strContent);
             var content = await resp.Content.ReadAsStringAsync();
 
             return content;

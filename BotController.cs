@@ -321,22 +321,26 @@ namespace OpenSkillBot
                 }
             }
 
-            MatchAction action = new MatchAction(team1, team2, result == 0, isTourney);
+            MatchAction action = new MatchAction(team1, team2, result == 0, isTourney, result == -1);
 
             if (isTourney) {
-                Tourneys.ActiveTournament.AddMatch(action);
                 action.TourneyId = Tourneys.ActiveTournament.Id;
             }
 
-            if (LatestAction != null) {
-                // note: this does recalculate
-                await LatestAction.InsertAfter(action);
+            if (result != -1) {
+                if (LatestAction != null) {
+                    // note: this does recalculate
+                    await LatestAction.InsertAfter(action);
+                }
+                else {
+                    await action.DoAction();
+                }
+
+                LatestAction = action;
             }
             else {
-                await action.DoAction();
+                await action.UndeafenPlayers();
             }
-
-            LatestAction = action;
 
             SerializeActions();
 

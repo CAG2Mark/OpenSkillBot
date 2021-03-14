@@ -18,6 +18,22 @@ namespace OpenSkillBot.Tournaments
         Swiss = 3
     }
 
+    public class MatchInfo {
+        public ulong ChallongeId;
+        public ulong Team1;
+        public ulong Team2;
+
+        public int Team1Score;
+        public int Team2Score;
+
+        public MatchInfo(ulong challongeId, ulong team1, ulong team2)
+        {
+            ChallongeId = challongeId;
+            Team1 = team1;
+            Team2 = team2;
+        }
+    }
+
     public class Tournament
     {
 
@@ -51,6 +67,8 @@ namespace OpenSkillBot.Tournaments
         }
 
         public List<Team> Teams { get; set; } = new List<Team>();
+
+        public List<MatchInfo> MatchInfos { get; set; } = new List<MatchInfo>();
 
         [JsonProperty]
         public string Id { get; private set; }
@@ -88,6 +106,14 @@ namespace OpenSkillBot.Tournaments
         }
 
         public async Task RebuildIndex() {
+            await RebuildParticipants(true);
+            await RebuildMatches(true);
+
+            await SendMessage();
+            Program.Controller.SerializeTourneys();
+        }
+
+        public async Task RebuildParticipants(bool silent = false) {
             if (!IsChallongeLinked) return;
             var participants = await Program.Challonge.GetParticipants((ulong)this.ChallongeId);
             // don't replace the actual value until it the integrity of the participants list is verified
@@ -99,13 +125,33 @@ namespace OpenSkillBot.Tournaments
             }
             this.Teams = newList;
 
-            await SendMessage();
-            Program.Controller.SerializeTourneys();
+            if (!silent) {
+                await SendMessage();
+                Program.Controller.SerializeTourneys();
+            }
+        }
+
+        public async Task RebuildMatches(bool silent = true) {
+            if (!IsChallongeLinked) return;
+            var matches = await Program.Challonge.GetMatches((ulong)this.ChallongeId, "open");
+            List<MatchInfo> newList = new List<MatchInfo>();
+
+            foreach (var m in matches)
+                newList.Add(
+                    new MatchInfo((ulong)m.Id, (ulong)m.Player1Id, (ulong)m.Player2Id)
+                );
+
+            this.MatchInfos = newList;
         }
 
         public async Task SetIsActive(bool isActive) {
             IsActive = isActive;
             await SendMessage();
+
+            if (isActive && IsChallongeLinked) {
+                await Program.Challonge.StartTournament((ulong)this.ChallongeId);
+                await RebuildIndex();
+            } 
         }
 
         public async Task<(bool, ChallongeParticipant)> AddTeam(Team t, bool silent = false) {
@@ -157,9 +203,98 @@ namespace OpenSkillBot.Tournaments
             return result;
         }
 
-        public void AddMatch(MatchAction m) {
-            this.Matches.Add(m);
-            this.matchUUIds.Add(m.ActionId);
+        /// <summary>
+        /// Finds the Challonge match given two teams, then updates the original team's Challonge ID.
+        /// </summary>
+        /// <param name="team1">The first team.</param>
+        /// <param name="team2">The second team.</param>
+        /// <returns></returns>
+        public async Task<MatchInfo> FindMatch(Team team1, Team team2) {
+
+            await RebuildIndex();
+
+            Team team1found = null;
+            Team team2found = null;
+
+            // find teams with the challonge id
+            foreach (var t in Teams) {
+                if (t.IsSameTeam(team1)) {
+                    team1found = t;
+                    team1.ChallongeId = t.ChallongeId;
+                }
+                if (t.IsSameTeam(team2)) {
+                    team2found = t;
+                    team2.ChallongeId = t.ChallongeId;
+                } 
+            }
+
+            if (team1found == null || team2found == null) {
+                throw new Exception("Could not find the specified teams within the tournament.");
+            }
+
+            MatchInfo matchFound = null;
+            // find the match with the correct teams
+            foreach (var m in MatchInfos) {
+                if ((m.Team1 == team1found.ChallongeId && m.Team2 == team2found.ChallongeId) ||
+                    (m.Team2 == team1found.ChallongeId && m.Team1 == team2found.ChallongeId)) {
+                    matchFound = m;
+                    break;
+                }
+            }
+
+            return matchFound;
+        }
+
+        /// <summary>
+        /// Marks a match as underway on Challonge.
+        /// </summary>
+        /// <param name="m">The pending match to mark as underway.</param>
+        public async Task StartMatch(PendingMatch m) {
+            var found = await FindMatch(m.Team1, m.Team2);
+            await Program.Challonge.MarkMatchUnderway((ulong)this.ChallongeId, found.ChallongeId);
+        }
+
+        /// <summary>
+        /// Adds a match. Throws an exception if the match was unable to be updated on Challonge. Can accept cancelled matches.
+        /// </summary>
+        /// <param name="m">The match to be added.</param>
+        public async Task AddMatch(MatchAction m) {
+            if (!m.IsCancelled) {
+                this.Matches.Add(m);
+                this.matchUUIds.Add(m.ActionId);
+            }
+            
+            // update on challonge
+            if (this.IsChallongeLinked) {
+                var foundMatch = await FindMatch(m.Winner, m.Loser);
+                if (foundMatch == null) {
+                    throw new Exception("Could not find the given match on Challonge. Match change was not reported to Challonge.");
+                }
+                if (!m.IsDraw) {
+                    if (!m.IsCancelled) {
+                        // find winner and loser and update scores
+                        var winnerId = foundMatch.Team2;
+                        var loserId = foundMatch.Team1;
+
+                        if (m.Winner.ChallongeId == foundMatch.Team1) {
+                            ++foundMatch.Team1Score;
+                            winnerId = foundMatch.Team1;
+                            loserId = foundMatch.Team2;
+                        } 
+                        else ++foundMatch.Team2Score;
+
+                        // upload to challonge
+                        ChallongeMatch toSend = new ChallongeMatch();
+                        toSend.WinnerId = winnerId;
+                        toSend.ScoresCsv = $"{foundMatch.Team1Score}-{foundMatch.Team2Score}";
+
+                        await Program.Challonge.UpdateMatch((ulong)this.ChallongeId, foundMatch.ChallongeId, toSend);
+                    }
+                    else {
+                        await Program.Challonge.UnmarkMatchUnderway((ulong)this.ChallongeId, foundMatch.ChallongeId);
+                    }
+                }
+            }
         }
 
         public void RemoveMatch(MatchAction m) {

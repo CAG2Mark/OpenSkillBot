@@ -26,6 +26,7 @@ namespace OpenSkillBot.BotCommands
             await ReplyAsync("", false, (await StartMatch(team1, team2, force)).Item2);        
         }
 
+        // allow this code to also be used for !tournamentstartmatch (!tsm)
         public static async Task<Tuple<PendingMatch, Embed>> StartMatch(string team1, string team2, bool force, bool isTourney = false) {
             try {
                 Team t1;
@@ -62,7 +63,7 @@ namespace OpenSkillBot.BotCommands
         [Alias(new string[] { "fm" })]
         [Summary("Calculates a full match between two teams.")]
         public async Task FullMatchCommand([Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
-            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1
+            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw. Enter -1 to cancel the match.")] int result = 1
         ) {
             await ReplyAsync("", false, (await FullMatch(team1, team2, result)).Item2);
         }
@@ -85,9 +86,10 @@ namespace OpenSkillBot.BotCommands
 
                 var match = await Program.Controller.AddMatchAction(t1, t2, result, isTourney);
 
-                string output = $"The match between **{t1_s}** and **{t2_s}** has been calculated.";
+                string output = result != -1 ? 
+                    $"The match between **{t1_s}** and **{t2_s}** has been calculated." : $"The match between **{t1_s}** and **{t2_s}** has been cancelled.";
 
-                return new Tuple<MatchAction, Embed>(match, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {match.ActionId}"));
+                return new Tuple<MatchAction, Embed>(match, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {(match == null ? "n/a" : match.ActionId)}"));
             }
             catch (Exception e) {
                 return new Tuple<MatchAction, Embed>(null, EmbedHelper.GenerateErrorEmbed(e.Message));

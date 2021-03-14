@@ -18,7 +18,7 @@ namespace OpenSkillBot.ChallongeAPI
         public Nullable<bool> HasAttachment { get; set; }
 
         [JsonProperty("id")]
-        public Nullable<long> Id { get; set; }
+        public Nullable<ulong> Id { get; set; }
 
         [JsonProperty("identifier")]
         public string Identifier { get; set; }
@@ -27,10 +27,10 @@ namespace OpenSkillBot.ChallongeAPI
         public string Location { get; set; }
 
         [JsonProperty("loser_id")]
-        public Nullable<long> LoserId { get; set; }
+        public Nullable<ulong> LoserId { get; set; }
 
         [JsonProperty("player1_id")]
-        public Nullable<long> Player1Id { get; set; }
+        public Nullable<ulong> Player1Id { get; set; }
 
         [JsonProperty("player1_is_prereq_match_loser")]
         public Nullable<bool> Player1IsPrereqMatchLoser { get; set; }
@@ -42,7 +42,7 @@ namespace OpenSkillBot.ChallongeAPI
         public Nullable<long> Player1Votes { get; set; }
 
         [JsonProperty("player2_id")]
-        public Nullable<long> Player2Id { get; set; }
+        public Nullable<ulong> Player2Id { get; set; }
 
         [JsonProperty("player2_is_prereq_match_loser")]
         public Nullable<bool> Player2IsPrereqMatchLoser { get; set; }
@@ -66,7 +66,7 @@ namespace OpenSkillBot.ChallongeAPI
         public string State { get; set; }
 
         [JsonProperty("tournament_id")]
-        public Nullable<long> TournamentId { get; set; }
+        public Nullable<ulong> TournamentId { get; set; }
 
         [JsonProperty("underway_at")]
         public string UnderwayAt { get; set; }
@@ -75,7 +75,7 @@ namespace OpenSkillBot.ChallongeAPI
         public string UpdatedAt { get; set; }
 
         [JsonProperty("winner_id")]
-        public Nullable<long> WinnerId { get; set; }
+        public Nullable<ulong> WinnerId { get; set; }
 
         [JsonProperty("prerequisite_match_ids_csv")]
         public string PrerequisiteMatchIdsCsv { get; set; }
