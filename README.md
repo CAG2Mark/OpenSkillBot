@@ -26,7 +26,6 @@ Planned features (non-exhaustive):
 # Prerequisites
 To run OpenSkillBot, you need the following:
 * .NET (`dotnet`). To install, see: https://dotnet.microsoft.com/download
-* 
  
 # Building and Running
 Binaries are not yet provided, so you must clone and run the bot yourself.
