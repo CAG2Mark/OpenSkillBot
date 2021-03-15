@@ -15,10 +15,9 @@ Currently working features:
 * Match history channel
 * Skill change detection
 * Logging of internal errors and events
-* Match insertion
-
-Features currently being implemented:
-* Challonge integration
+* Match Insertion
+* Tournaments
+* Challonge Integration
 
 Planned features (non-exhaustive):
 * Achievements
