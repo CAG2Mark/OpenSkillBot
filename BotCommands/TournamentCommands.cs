@@ -33,7 +33,8 @@ namespace OpenSkillBot.BotCommands
                 $"Date: {tourney.GetTimeStr()}" + Environment.NewLine
             ));
 
-            if (Program.Controller.Tournaments.Count == 1) await SetCurrentTournamentCommand(1);
+            // set to this
+            await SetCurrentTournamentCommand(Program.Controller.Tournaments.Count);
         }
 
         [RequirePermittedRole]
@@ -57,7 +58,7 @@ namespace OpenSkillBot.BotCommands
                 $"Challonge URL: {ct.FullChallongeUrl}"
             ));
 
-            if (Program.Controller.Tournaments.Count == 1) await SetCurrentTournamentCommand(1);
+            await SetCurrentTournamentCommand(Program.Controller.Tournaments.Count - 1);
         }
 
         [RequirePermittedRole]
@@ -126,13 +127,8 @@ namespace OpenSkillBot.BotCommands
 
             var playerNames = new StringBuilder();
 
-            var playersSpl = Regex.Split(players, " (?=(?:[^']*'[^']*')*[^']*$)");
-
-            foreach (var t in playersSpl) {
+            foreach (var team in StrListToTeams(players)) {
                 try {
-                    // get team
-                    Team team = SkillCommands.strToTeam(t);
-
                     if ((await selectedTourney.AddTeam(team, true)).Item1)
                         playerNames.Append(team + Environment.NewLine);
                     else
@@ -174,12 +170,9 @@ namespace OpenSkillBot.BotCommands
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Removing players from the tournament **{selectedTourney.Name}**..."));
 
             var playerNames = new StringBuilder();
-            var playersSpl = Regex.Split(players, " (?=(?:[^']*'[^']*')*[^']*$)");
 
-            foreach (var t_str in playersSpl) {
+            foreach (var t in StrListToTeams(players)) {
                 try {
-                    var t = SkillCommands.strToTeam(t_str);
-
                     if (await selectedTourney.RemoveTeam(t, true))
                         playerNames.Append(t + Environment.NewLine);
                     else
@@ -299,6 +292,43 @@ namespace OpenSkillBot.BotCommands
         }
 
         [RequirePermittedRole]
+        [Command("endtournament")]
+        [Alias(new string[] { "podium", "et" })]
+        [Summary("Ends a tournament.")]
+        public async Task EndTournamentCommand(
+            [Remainder][Summary("A comma separated list of the rankings of the teams, starting from the winner to the loser." + 
+                "Is optional, but will be autofilled if Challonge is linked.")] string rankings = null
+        ) {
+            if (!Program.Controller.IsTourneyActive) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    $"The selected tournament **{selectedTourney.Name}** is not active.")
+                );
+                return;
+            }
+
+            var t = selectedTourney;
+
+            var rankingsList = new List<MatchRanking>();
+
+            // get rankings
+            if (!string.IsNullOrWhiteSpace(rankings)) {
+                var teams = StrListToTeams(rankings);
+                for (int i = 1; i <= teams.Count; ++i) {
+                    rankingsList.Add(new MatchRanking(teams[i - 1], (uint)i));
+                }
+            }
+
+            if (!(await t.FinaliseTournament(rankingsList))) {
+                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed("Could not finalise the tournament on Challonge."));
+            }
+            else {
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Finalised the tournament on Challonge."));
+            }
+
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"The tournament **{t.Name}** has been marked as completed."));
+        }
+
+        [RequirePermittedRole]
         [Command("tournamentfullmatch")]
         [Alias(new string[] { "tfm", "cfm" })]
         [Summary("Calculates a full match between two teams, and reports it to the current tournament.")]
@@ -330,7 +360,13 @@ namespace OpenSkillBot.BotCommands
             }
         }
 
-
-
+        public static List<Team> StrListToTeams(string players, char separator = ' ') {
+            var playersSpl = Regex.Split(players, separator + "(?=(?:[^']*'[^']*')*[^']*$)");
+            List<Team> returns = new List<Team>();
+            foreach (var p in playersSpl) {
+                returns.Add(SkillCommands.StrToTeam(p));
+            }
+            return returns;
+        }
     }
 }

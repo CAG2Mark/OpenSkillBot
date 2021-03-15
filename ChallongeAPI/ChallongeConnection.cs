@@ -36,8 +36,6 @@ namespace OpenSkillBot.ChallongeAPI {
         public async Task<List<ChallongeTournament>> GetTournaments() {
             var res = await httpGet("tournaments.json");
 
-            Console.WriteLine(res);
-
             List<ChallongeTournament> returns = new List<ChallongeTournament>();
 
             try {
@@ -93,6 +91,7 @@ namespace OpenSkillBot.ChallongeAPI {
             p.Add("participant", participant);
 
             var res = await httpPost($"tournaments/{tournamentId}/participants.json", p);
+
             var des = JsonConvert.DeserializeObject<Dictionary<string, ChallongeParticipant>>(res);
 
             return des["participant"];
@@ -193,12 +192,26 @@ namespace OpenSkillBot.ChallongeAPI {
             return des["tournament"];   
         }
 
+        /// <summary>
+        /// Starts a given tournament on Challonge.
+        /// </summary>
+        /// <param name="tournamentId">The ID of the tournament to start.</param>
+        /// <returns></returns>
         public async Task StartTournament(ulong tournamentId) {
             var p = new Dictionary<string,object>();
             p.Add("include_participants", 1);
             p.Add("include_matches", 1);
 
             var res = await httpPost($"tournaments/{tournamentId}/start.json", p);
+        }
+
+        /// <summary>
+        /// Finalizes a given tournament on Challonge.
+        /// </summary>
+        /// <param name="tournamentId">The ID of the tournament to finalize.</param>
+        /// <returns></returns>
+        public async Task FinalizeTournament(ulong tournamentId) {
+            var res = await httpPost($"tournaments/{tournamentId}/finalize.json");
         }
 
         #endregion
@@ -223,6 +236,10 @@ namespace OpenSkillBot.ChallongeAPI {
             parameters.Add("api_key", token);
 
             var resp = await client.GetAsync(url + endpoint + "?" + encodeParams(parameters));
+
+            // ensure success
+            resp.EnsureSuccessStatusCode();
+            
             var content = await resp.Content.ReadAsStringAsync();
 
             return content;
@@ -246,6 +263,10 @@ namespace OpenSkillBot.ChallongeAPI {
             HttpContent strContent = new StringContent(toSend, Encoding.UTF8, "application/json");
 
             var resp = await client.PostAsync(url + endpoint, strContent);
+
+            // ensure success
+            resp.EnsureSuccessStatusCode();
+
             var content = await resp.Content.ReadAsStringAsync();
 
             return content;
@@ -269,6 +290,10 @@ namespace OpenSkillBot.ChallongeAPI {
             HttpContent strContent = new StringContent(toSend, Encoding.UTF8, "application/json");
 
             var resp = await client.PutAsync(url + endpoint, strContent);
+
+            // ensure success
+            resp.EnsureSuccessStatusCode();
+
             var content = await resp.Content.ReadAsStringAsync();
 
             return content;
@@ -286,6 +311,10 @@ namespace OpenSkillBot.ChallongeAPI {
             parameters.Add("api_key", token);
 
             var resp = await client.DeleteAsync(url + endpoint + "?" + encodeParams(parameters));
+
+            // ensure success
+            resp.EnsureSuccessStatusCode();
+
             var content = await resp.Content.ReadAsStringAsync();
 
             return content;

@@ -32,8 +32,8 @@ namespace OpenSkillBot.BotCommands
                 Team t1;
                 Team t2;
                 try {
-                    t1 = strToTeam(team1);
-                    t2 = strToTeam(team2);
+                    t1 = StrToTeam(team1);
+                    t2 = StrToTeam(team2);
                 }
                 catch (Exception e) {
                     return new Tuple<PendingMatch, Embed>(null, EmbedHelper.GenerateErrorEmbed(e.Message));
@@ -74,8 +74,8 @@ namespace OpenSkillBot.BotCommands
                 Team t1;
                 Team t2;
                 try {
-                    t1 = strToTeam(team1);
-                    t2 = strToTeam(team2);
+                    t1 = StrToTeam(team1);
+                    t2 = StrToTeam(team2);
                 }
                 catch (Exception e) {
                     return new Tuple<MatchAction, Embed>(null, EmbedHelper.GenerateErrorEmbed(e.Message));
@@ -127,8 +127,8 @@ namespace OpenSkillBot.BotCommands
                 Team t1;
                 Team t2;
                 try {
-                    t1 = strToTeam(team1);
-                    t2 = strToTeam(team2);
+                    t1 = StrToTeam(team1);
+                    t2 = StrToTeam(team2);
                 }
                 catch (Exception e) {
                     await msg.DeleteAsync();
@@ -195,8 +195,8 @@ namespace OpenSkillBot.BotCommands
                 Team t1;
                 Team t2;
                 try {
-                    t1 = strToTeam(team1);
-                    t2 = strToTeam(team2);
+                    t1 = StrToTeam(team1);
+                    t2 = StrToTeam(team2);
                 }
                 catch (Exception e) {
                     await msg.DeleteAsync();
@@ -501,7 +501,7 @@ namespace OpenSkillBot.BotCommands
 
         // helpers
 
-        public static Team strToTeam(string teamStr) {
+        public static Team StrToTeam(string teamStr) {
             teamStr = Regex.Replace(teamStr, ", (?=(?:[^']*'[^']*')*[^']*$)", ",");
             var split = Regex.Split(teamStr, ",(?=(?:[^']*'[^']*')*[^']*$)");
             var players = new Player[split.Length];

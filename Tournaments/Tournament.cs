@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Rest;
@@ -16,6 +17,19 @@ namespace OpenSkillBot.Tournaments
         DoubleElim = 1,
         RoundRobin = 2,
         Swiss = 3
+    }
+
+    public struct MatchRanking {
+
+        [JsonProperty]
+        public Team Team { get; private set; }
+        [JsonProperty]
+        public uint Ranking { get; private set; }
+        public MatchRanking(Team team, uint ranking)
+        {
+            Team = team;
+            Ranking = ranking;
+        }
     }
 
     public class MatchInfo {
@@ -76,6 +90,16 @@ namespace OpenSkillBot.Tournaments
         [JsonProperty]
         public bool IsActive { get; private set; }
 
+        [JsonProperty]
+        public bool IsCompleted { get; private set; } = false;
+
+        [JsonProperty]
+        private List<OldPlayerData> oldData { get; set; } = new List<OldPlayerData>();
+        
+        // for archival purposes
+        [JsonProperty]
+        private List<(string UUId, Rank oldRank, Rank newRank)> rankChanges { get; set; } = new List<(string UUId, Rank oldRank, Rank newRank)>();
+
         #endregion
 
         public Tournament() {
@@ -113,22 +137,29 @@ namespace OpenSkillBot.Tournaments
             Program.Controller.SerializeTourneys();
         }
 
-        public async Task RebuildParticipants(bool silent = false) {
-            if (!IsChallongeLinked) return;
+        public async Task<List<ChallongeParticipant>> RebuildParticipants(bool silent = false, bool order = false) {
+            if (!IsChallongeLinked) return null;
             var participants = await Program.Challonge.GetParticipants((ulong)this.ChallongeId);
             // don't replace the actual value until it the integrity of the participants list is verified
             List<Team> newList = new List<Team>();
             foreach (var p in participants) {
-                Team t = SkillCommands.strToTeam(p.Name);
+                Team t = SkillCommands.StrToTeam(p.Name);
                 t.ChallongeId = (ulong)p.Id;
+                if (p.FinalRank != null) t.Ranking = (uint)p.FinalRank;
                 newList.Add(t);
             }
             this.Teams = newList;
+
+            if (order) {
+                this.Teams = Teams.OrderBy(p => p.Ranking).ToList();
+            }
 
             if (!silent) {
                 await SendMessage();
                 Program.Controller.SerializeTourneys();
             }
+
+            return participants;
         }
 
         public async Task RebuildMatches(bool silent = true) {
@@ -148,13 +179,28 @@ namespace OpenSkillBot.Tournaments
             IsActive = isActive;
             await SendMessage();
 
-            if (isActive && IsChallongeLinked) {
-                await Program.Challonge.StartTournament((ulong)this.ChallongeId);
-                await RebuildIndex();
-            } 
+
+            if (isActive) {
+                // store old player data
+
+                foreach (var t in Teams) {
+                    foreach (var p in t.Players) {
+                        oldData.Add(new OldPlayerData() { UUId = p.UUId, Mu = p.Mu, Sigma = p.Sigma});
+                    }
+                }
+
+                // update challonge
+                if (IsChallongeLinked) {
+                    await Program.Challonge.StartTournament((ulong)this.ChallongeId);
+                    await RebuildIndex();
+                }
+            }
         }
 
         public async Task<(bool, ChallongeParticipant)> AddTeam(Team t, bool silent = false) {
+            if (this.IsActive || this.IsCompleted) 
+                throw new Exception("You cannot add teams to a tournament that is active or completed.");
+
             if (Teams.Contains(t)) return (false, null);
             Teams.Add(t);
  
@@ -313,6 +359,68 @@ namespace OpenSkillBot.Tournaments
             return m;
         }
 
+
+        /// <summary>
+        /// Finalises the tournament.
+        /// </summary>
+        /// <returns>False if the match was not properly finalised on Challonge.</returns>
+        public async Task<bool> FinaliseTournament(List<MatchRanking> rankings = null) {
+            if (this.IsCompleted) return true;
+
+            this.IsCompleted = true;
+
+            // finalise on challonge
+            if (IsChallongeLinked) {
+                try {
+                    await Program.Challonge.FinalizeTournament((ulong)this.ChallongeId);
+
+                    // get podium if no rankings were provided
+                    // todo: make faster than O(n*m)
+                    if (rankings == null || rankings.Count == 0) {
+                        var parts = await RebuildParticipants(false, true);
+                    }
+                }
+                catch (Exception) {
+                    await SendMessage();
+                    return false;
+                }
+            }
+            else {
+                // todo: dry here
+                if (rankings != null && rankings.Count != 0) {
+                    foreach (var r in rankings) {
+                        var found = this.Teams.FirstOrDefault(x => x.Equals(r.Team));
+                        if (found == null) continue;
+                        found.Ranking = r.Ranking;
+                    }
+
+                    this.Teams = this.Teams.OrderBy(p => p.Ranking).ToList();
+                }
+            }
+
+            // get rank changes
+            foreach (var op in oldData) {
+                var p = Program.CurLeaderboard.FindPlayer(op.UUId);
+                var oldRank = Player.GetRank(op.Mu, op.Sigma);
+                var newRank = p.PlayerRank;
+
+                if (!oldRank.Equals(newRank)) {
+                    // add to rank changes
+                    rankChanges.Add((p.UUId, oldRank, newRank));
+                }
+            }
+
+            Program.Controller.SerializeTourneys();
+            // move this tournaments to the completed section for archival
+            Program.Controller.Tourneys.Tournaments.Remove(this);
+            Program.Controller.Tourneys.CompletedTournaments.Add(this);
+            Program.Controller.Tourneys.ActiveTournament = null;
+
+            await SendMessage();
+
+            return true;
+        }
+
         [JsonProperty]
         private ulong messageId { get; set; }
         private RestUserMessage message;
@@ -330,12 +438,21 @@ namespace OpenSkillBot.Tournaments
         public Embed GetEmbed() {
             var eb = new EmbedBuilder()
                 .WithFooter($"ID: {Id}")
-                .WithColor(IsActive ? Discord.Color.Green : Discord.Color.Blue)
+                .WithColor(IsCompleted ? Discord.Color.LightGrey : (IsActive ? Discord.Color.Purple : Discord.Color.Blue))
                 .WithTitle(":crossed_swords: " + this.Name);
 
             eb.AddField("Time", GetTimeStr(), true);
             eb.AddField("Format", this.Format.ToString(), true);
-            eb.AddField("Players", this.Teams == null || this.Teams.Count == 0 ? "Nobody has signed up yet." : string.Join(Environment.NewLine, this.Teams.Select(p => p.ToString())));
+            eb.AddField("Players", this.Teams == null || this.Teams.Count == 0 ? "Nobody has signed up yet." : 
+                string.Join(Environment.NewLine, this.Teams.Select(p => p.GetPodiumString())));
+
+            if (IsCompleted && rankChanges != null && rankChanges.Count != 0) {
+                var sb = new StringBuilder();
+                foreach (var rc in rankChanges) {
+                    sb.Append($"**{Program.CurLeaderboard.FindPlayer(rc.UUId).IGN}**: *{rc.oldRank.Name}* → *{rc.newRank.Name}*{Environment.NewLine}");
+                }
+                eb.AddField("Rank Changes", sb.ToString(), true);
+            }
 
             if (IsChallongeLinked)
                 eb.AddField($"Bracket", ChallongeUrl);
@@ -461,7 +578,7 @@ namespace OpenSkillBot.Tournaments
             // parse tournament type, use fuzzy matching
             switch (format[0]) {
                 case 's':
-                    if (format[1] == 'i') type = TournamentType.SingleElim;
+                    if (format.Length == 1 || format[1] == 'i') type = TournamentType.SingleElim;
                     else if (format[1] == 'w') type = TournamentType.Swiss;
                     else throw new Exception($"Tournament type \"{format}\" not recognised.");
                 break;

@@ -34,7 +34,7 @@ namespace OpenSkillBot.Skill
             }
 
             var rank = (Rank)obj;
-            return this.LowerBound == rank.LowerBound && this.Name == rank.Name && this.RoleId == rank.RoleId;
+            return this.LowerBound == rank.LowerBound && this.Name.Equals(rank.Name) && this.RoleId == rank.RoleId;
         }
         
         // override object.GetHashCode
@@ -62,19 +62,29 @@ namespace OpenSkillBot.Skill
 
         public void AddPlayer(Player p) {
 
+
+            bool added = false;
             // O(n) insertion rather than n log n
             for (int i = 0; i < Players.Count; ++i) {
                 if (p.UUId.CompareTo(Players[i].UUId) >= 0) {
                     Players.Insert(i, p);
+                    added = true;
                     break;
                 }
             }
+            if (!added) {
+                Players.Add(p);
+            }
 
+            added = false;
             for (int i = 0; i < players_byTs.Count; ++i) {
                 if (p.DisplayedSkill >= players_byTs[i].DisplayedSkill) {
                     players_byTs.Insert(i, p);
                     break;
                 }
+            }
+            if (!added) {
+                players_byTs.Add(p);
             }
 
             // Insert into dictionary for fast searching of player by discord ID

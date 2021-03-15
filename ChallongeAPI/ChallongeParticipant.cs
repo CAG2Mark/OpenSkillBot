@@ -17,7 +17,7 @@ namespace OpenSkillBot.ChallongeAPI
         public string CreatedAt { get; set; }
 
         [JsonProperty("final_rank")]
-        public string FinalRank { get; set; }
+        public Nullable<ushort> FinalRank { get; set; }
 
         [JsonProperty("group_id")]
         public Nullable<long> GroupId { get; set; }

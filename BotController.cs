@@ -97,6 +97,9 @@ namespace OpenSkillBot
         public Dictionary<string, MatchAction> MatchHash { get; set; } = new Dictionary<string, MatchAction>();
     }
     public class TourneyStruct {
+
+        public List<Tournament> CompletedTournaments { get; set; } = new List<Tournament>();
+
         public List<Tournament> Tournaments { get; set; } = new List<Tournament>();
 
         // referential integrity after restart
@@ -112,7 +115,7 @@ namespace OpenSkillBot
             }
             set {
                 activeTournament = value;
-                activeTournamentId = value.Id;
+                activeTournamentId = value == null ? null : value.Id;
                 Program.Controller.SerializeTourneys();
             }
         }

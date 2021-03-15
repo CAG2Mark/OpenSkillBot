@@ -9,6 +9,12 @@ namespace OpenSkillBot.Skill {
         // For challonge. Will be populated when needed
         public ulong ChallongeId { get; set; }
 
+        /// <summary>
+        /// The ranking of this team in a tournament. By default is set to 2^32.
+        /// </summary>
+        /// <value></value>
+        public uint Ranking { get; set; } = uint.MaxValue;
+
         private List<Player> players;
 
 
@@ -43,6 +49,12 @@ namespace OpenSkillBot.Skill {
             return true;
         }
 
+        public string GetPodiumString() {
+            var str = this.ToString();
+            if (this.Ranking != uint.MaxValue) return this.Ranking + getPrefix(this.Ranking) + ": " + str;
+            else return str;
+        }
+
         // override object.Equals
         public override bool Equals(object obj)
         {
@@ -70,6 +82,12 @@ namespace OpenSkillBot.Skill {
         public override string ToString()
         {
             return String.Join(", ", Players.Select(p => p.IGN));
+        }
+
+        static string getPrefix(uint num) {
+            string[] prefixes = new string[] { "th", "st", "nd", "rd", "th" };
+            if ((num / 10) % 10 == 1) return "th";
+            else return prefixes[Math.Min(4, num % 10)];
         }
     }
 }

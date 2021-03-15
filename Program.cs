@@ -97,13 +97,5 @@ namespace OpenSkillBot
         public static void SerializeConfig() {
             SerializeHelper.Serialize(Config, "config.json", true);
         }
-
-        public static void OutputPriv(string output) {
-            Console.WriteLine(output);
-        }
-
-        public static void OutputPublic(string output) {
-            Console.WriteLine(output);
-        }
     }
 }
