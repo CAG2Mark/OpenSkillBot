@@ -427,6 +427,7 @@ namespace OpenSkillBot.Tournaments
         public async Task<RestUserMessage> GetMessage() {
             if (messageId == 0) return null;
             if (message == null) message = (RestUserMessage) await Program.DiscordIO.GetMessage(messageId, Program.Config.TourneysChannelId);
+
             return message;
         }
 

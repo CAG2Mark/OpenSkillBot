@@ -10,7 +10,7 @@ using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 
 namespace OpenSkillBot.Skill {
 
-    public struct OldPlayerData {
+    public class OldPlayerData {
         public string UUId;
         public double Sigma;
         public double Mu;
@@ -414,10 +414,22 @@ namespace OpenSkillBot.Skill {
         }
 
         public static void CalculateMatch(IEnumerable<Player> winTeam, IEnumerable<Player> loseTeam, bool isDraw = false) {
+            var results = GetMatchResult(winTeam, loseTeam, isDraw);
+            foreach (var val in results.Keys) {
+                var mu = results[val].Mu;
+                var sigma = results[val].Sigma;
 
+                val.Mu = mu;
+                val.Sigma = sigma;
+            }
+        }
+
+        public static IDictionary<Player, (double Mu, double Sigma)> GetMatchResult(IEnumerable<Player> winTeam, IEnumerable<Player> loseTeam, bool isDraw = false) {
             var teams = new Tuple<IEnumerable<Player>, int>[] { 
                 new Tuple<IEnumerable<Player>, int>(winTeam, 0), 
                 new Tuple<IEnumerable<Player>, int>(loseTeam, 1)};
+
+            Dictionary<Player, (double Mu, double Sigma)> returns = new Dictionary<Player, (double Mu, double Sigma)>();
 
             var mosTeams = ConvertToMoserTeams(teams);
 
@@ -435,13 +447,13 @@ namespace OpenSkillBot.Skill {
                     foreach (var player in team)
                     {
                         if (player.UUId.Equals(id)) {
-
-                            player.Mu = result.Value.Mean;
-                            player.Sigma = result.Value.StandardDeviation;
+                            returns.Add(player, (result.Value.Mean, result.Value.StandardDeviation));
                         }
                     }
                 }
             }
+
+            return returns;
         }
     }
 }

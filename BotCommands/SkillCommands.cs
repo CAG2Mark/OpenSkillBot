@@ -10,7 +10,6 @@ using System.Text.RegularExpressions;
 
 namespace OpenSkillBot.BotCommands
 {
-    [RequirePermittedRole]
     [Name("Skill Commands")]
     public class SkillCommands : ModuleBase<SocketCommandContext> {
 
@@ -57,6 +56,69 @@ namespace OpenSkillBot.BotCommands
                 return new Tuple<PendingMatch, Embed>(null, EmbedHelper.GenerateErrorEmbed(e.Message));
             }
         }
+
+        [Command("calculate")]
+        [Alias(new string[] { "calc"})]
+        [Summary("Returns the value of the hypothetical result of a full match between two teams.")]
+        public async Task CalculateCommand([Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
+            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw. Enter -1 to cancel the match.")] int result = 1
+        ) {
+            try {
+                Team t1;
+                Team t2;
+                try {
+                    t1 = StrToTeam(team1);
+                    t2 = StrToTeam(team2);
+                }
+                catch (Exception e) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                    return;
+                }
+
+                var oldData = toOldPlayerData(new Team[] {t1, t2});
+
+                var t1_s = t1.ToString();
+                var t2_s = t2.ToString();
+
+                var team1Win = TrueskillWrapper.GetMatchResult(t1.Players, t2.Players);
+                var team2Win = TrueskillWrapper.GetMatchResult(t2.Players, t1.Players);
+                var draw = TrueskillWrapper.GetMatchResult(t1.Players, t2.Players, true);
+
+                var embed = new EmbedBuilder()
+                    .WithColor(Discord.Color.Blue)
+                    .WithTimestamp(DateTime.UtcNow)
+                    .WithTitle($":crossed_swords: **{t1_s}** vs **{t2_s}**:");
+
+                embed.AddField($"If **{t1_s}** wins:", 
+                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(team1Win)));
+
+                embed.AddField($"If **{t2_s}** wins:", 
+                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(team2Win)));
+
+                embed.AddField($"If **{t1_s}** and **{t2_s}** draw:", 
+                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(draw)));
+
+                await ReplyAsync("", false, embed.Build());
+            }
+            catch (Exception e) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+            }
+        }
+
+        private static IEnumerable<OldPlayerData> toOldPlayerData(IDictionary<Player, (double Mu, double Sigma)> data) {
+            foreach (var k in data.Keys) {
+                yield return new OldPlayerData() { UUId = k.UUId, Mu = data[k].Mu, Sigma = data[k].Sigma};
+            }
+        }
+
+        private static IEnumerable<OldPlayerData> toOldPlayerData(IEnumerable<Team> teams) {
+            foreach (var t in teams) {
+                foreach (var p in t.Players) {
+                    yield return new OldPlayerData() { UUId = p.UUId, Mu = p.Mu, Sigma = p.Sigma };
+                }
+            }
+        }
+
 
         [RequirePermittedRole]
         [Command("fullmatch")]
@@ -227,6 +289,7 @@ namespace OpenSkillBot.BotCommands
             }
         }
 
+        [RequirePermittedRole]
         [Command("addrank")]
         [Summary("Adds a new player rank. If you want ranks to be updated, you must run !refreshrank after this.")]
         public Task AddRankCommand([Summary("The minimum skill to be in this rank.")] int lowerBound, 
@@ -243,6 +306,7 @@ namespace OpenSkillBot.BotCommands
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Successfully added rank **{rankName}**"));
         }
 
+        [RequirePermittedRole]
         [Command("deleterank")]
         [Summary("Removes a player rank. If you want ranks to be updated, you must run !refreshrank after this.")]
         public Task DeleteRank([Remainder][Summary("The exact name of the rank (capitalisation does not matter).")] string rankName) {
@@ -256,6 +320,7 @@ namespace OpenSkillBot.BotCommands
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Removed the rank **{rankName}**"));
         }
 
+        [RequirePermittedRole]
         [Command("viewranks")]
         [Summary("Displays a list of all the rank and their boundaries.")]
         public async Task ViewRanks() {
@@ -267,7 +332,7 @@ namespace OpenSkillBot.BotCommands
             await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(sb.ToString()));
         }
 
-        
+        [RequirePermittedRole]        
         [Command("refreshrank", RunMode = RunMode.Async)]
         [Summary("Refreshes the rank of all players, or a specific list of players.")]
         public async Task RefreshRankCommand([Summary(
@@ -320,7 +385,7 @@ namespace OpenSkillBot.BotCommands
         }
 
 
-
+        [RequirePermittedRole]
         [Command("resetleaderboard")]
         [Summary("Resets the leaderboard. Requires a token for safety. If no token is provided, one is generated and you must re-type the command with the token.")]
         public async Task ResetLeaderboardCommand([Summary("The provided reset token.")]string token = null) {
@@ -338,6 +403,7 @@ namespace OpenSkillBot.BotCommands
             }
         }
 
+        [RequirePermittedRole]
         [Command("undo")]
         [Summary("Undos a given number of matches.")]
         public async Task UndoCommand([Summary("The number of matches to undo (default is 1).")] int count = 1) {
@@ -372,6 +438,7 @@ namespace OpenSkillBot.BotCommands
             if (count >= p_depth) await PtrResetCommand();
         }
 
+        [RequirePermittedRole]
         [Command("undo")]
         [Summary("Undos a specific match.")]
         public async Task UndoCommand([Summary("The ID of the match.")] string id) {
@@ -445,6 +512,7 @@ namespace OpenSkillBot.BotCommands
         private static MatchAction p_match;
         private static int p_depth = 1;
 
+        [RequirePermittedRole]
         [Command("ptrreset")]
         [Summary("Resets the pointer to the latest match.")]
         public async Task PtrResetCommand() {
@@ -454,12 +522,14 @@ namespace OpenSkillBot.BotCommands
                 "**The pointer has been reset to the latest match.**"));
         }
 
+        [RequirePermittedRole]
         [Command("viewptr")]
         [Summary("Outputs the match currently focused on by the pointer.")]
         public async Task ViewPtrCommand() {
             await viewPtrPos();
         }
 
+        [RequirePermittedRole]
         [Command("ptrmv")]
         [Summary("Moves the pointer by a specified amount.")]
         public async Task PtrMoveCommand(

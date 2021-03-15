@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Discord;
@@ -9,6 +10,29 @@ namespace OpenSkillBot.Skill
     {
         private static int r(double f) {
             return (int)Math.Round(f, 0);
+        }
+
+        public static string MatchDeltaGenerator(IEnumerable<OldPlayerData> oldPlayerDatas, IEnumerable<OldPlayerData> newPlayerData) {
+            var sb = new StringBuilder();
+            foreach (var old in oldPlayerDatas) {
+                var newMatch = newPlayerData.FirstOrDefault(n => n.UUId.Equals(old.UUId));
+                var player = Program.CurLeaderboard.FindPlayer(old.UUId);
+                if (newMatch == null || player == null) return null;
+
+                var tsDelta = r(DisplayedSkill(newMatch) - DisplayedSkill(old));
+                var sigmaDelta = newMatch.Sigma - old.Sigma;
+
+                string tsDelta_s = (tsDelta < 0 ? "" : "+") + r(tsDelta);
+                string sigmaDelta_s = (sigmaDelta < 0 ? "" : "+") + r(sigmaDelta);
+
+                sb.Append($"**{player.IGN} {tsDelta_s}, {sigmaDelta_s}** (*{r(DisplayedSkill(old))} RD {r(old.Sigma)}* → *{r(DisplayedSkill(newMatch))} RD {r(newMatch.Sigma)}*)");
+                sb.Append(Environment.NewLine);
+            }
+            return sb.ToString();
+        }
+
+        public static double DisplayedSkill(OldPlayerData data) {
+            return data.Mu - Program.Config.TrueSkillDeviations * data.Sigma;
         }
 
         public static Embed MakeMatchMessage(MatchAction action) {
