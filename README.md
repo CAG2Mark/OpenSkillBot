@@ -17,7 +17,8 @@ Currently working features:
 * Logging of internal errors and events
 * Match Insertion
 * Tournaments
-* Challonge Integration
+  * Challonge integration
+  * Self-service sign up
 
 Planned features (non-exhaustive):
 * Achievements
