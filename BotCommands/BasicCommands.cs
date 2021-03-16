@@ -224,7 +224,7 @@ namespace OpenSkillBot.BotCommands
                 {
 
                     PreconditionResult result = cmd.CheckPreconditionsAsync(Context).Result;
-                    if (result.IsSuccess && !cmd.Summary.Contains("(Easter Egg)")) {
+                    if (result.IsSuccess && (cmd.Summary == null | !cmd.Summary.Contains("(Easter Egg)"))) {
                         var append = $"**{prefix}{cmd.Name}**: _{cmd.Summary}_\n";
                         if (append.Length + description.Length > 1024) {
                             builder.AddField(x => {
@@ -292,7 +292,7 @@ namespace OpenSkillBot.BotCommands
             {
                 var cmd = match.Command;
 
-                if (cmd.Summary.Contains("(Easter Egg)")) continue;
+                if (cmd.Summary == null || cmd.Summary.Contains("(Easter Egg)")) continue;
 
                 sb.Append(GenerateCommandTitle(cmd));
                 sb.Append(Environment.NewLine);
@@ -305,16 +305,17 @@ namespace OpenSkillBot.BotCommands
         [Name("help")]
         [Command("help")]
         [Summary("Searches for commands that match the query and returns their usages.")]
-        public Task HelpCommand([Summary("The command to search for.")]string query)
+        public async Task HelpCommand([Summary("The command to search for.")]string query)
         {
             var result = Program.DiscordIO.Commands.Search(Context, query);
 
-            if (!result.IsSuccess)
+            if (!result.IsSuccess || result.Commands == null)
             {
-                return ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the command **{query}**."));
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the command **{query}**."));
+                return;
             }
 
-            var result_ = result.Commands.Where(c => !c.Command.Summary.Contains("(Easter Egg)")).ToList();
+            var result_ = result.Commands.Where(c => c.Command.Summary == null || !c.Command.Summary.Contains("(Easter Egg)")).ToList();
 
             string prefix = Program.prefix.ToString();
             var builder = new EmbedBuilder()
@@ -335,7 +336,7 @@ namespace OpenSkillBot.BotCommands
                 });
             }
 
-            return ReplyAsync("", false, builder.Build());
+            await ReplyAsync("", false, builder.Build());
         }
     }
 }

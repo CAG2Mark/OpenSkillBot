@@ -591,7 +591,7 @@ namespace OpenSkillBot.BotCommands
                 }
             }
 
-            return new Team() { Players = players.ToList() };
+            return new Team() { Players = players };
         }
     }
 }

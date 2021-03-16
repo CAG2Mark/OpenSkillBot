@@ -93,6 +93,13 @@ namespace OpenSkillBot.Skill
 
         }
 
+        public void RemovePlayer(Player p) {
+            Players.Remove(p);
+            players_byTs.Remove(p);
+
+            InvokeChange();
+        }
+
         public void Initialize() {
             players_byTs = Players.Select(x => x).ToList();
             Players.Sort((x, y) => x.UUId.CompareTo(y.UUId));

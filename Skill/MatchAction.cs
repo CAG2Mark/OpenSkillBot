@@ -20,7 +20,7 @@ namespace OpenSkillBot.Skill {
     {
         public static Team UUIDListToTeam(IEnumerable<string> uuids) {
             var t = new Team();
-            t.Players = UUIDListToPlayers(uuids);
+            t.Players = UUIDListToPlayers(uuids).ToArray();
 
             return t;
         }
@@ -160,7 +160,7 @@ namespace OpenSkillBot.Skill {
             setOldPlayerDatas();
             await action();
             if (invokeChange) {
-                Program.CurLeaderboard.InvokeChange(Winner.Players.Count + Loser.Players.Count);
+                Program.CurLeaderboard.InvokeChange(Winner.Players.Length + Loser.Players.Length);
             }
         }
 
@@ -175,7 +175,7 @@ namespace OpenSkillBot.Skill {
 
         public async Task<int> Undo()
         {
-            int count = this.Winner.Players.Count + this.Loser.Players.Count;
+            int count = this.Winner.Players.Length + this.Loser.Players.Length;
 
             count += mergeForwardOld();
 
@@ -213,7 +213,7 @@ namespace OpenSkillBot.Skill {
         }
 
         public async Task<int> ReCalculateSelf() {
-            int count = Winner.Players.Count + Loser.Players.Count;
+            int count = Winner.Players.Length + Loser.Players.Length;
             if (this.NextAction != null)
             {
                 count += this.mergeForwardOld();
@@ -229,7 +229,7 @@ namespace OpenSkillBot.Skill {
 
         public async Task InsertAfter(MatchAction action)
         {
-            int count = action.Winner.Players.Count + action.Loser.Players.Count;
+            int count = action.Winner.Players.Length + action.Loser.Players.Length;
             if (this.NextAction != null)
             {
                 count += this.NextAction.mergeForwardOld();
@@ -247,7 +247,7 @@ namespace OpenSkillBot.Skill {
 
         public async Task<int> InsertBefore(MatchAction action)
         {
-            int count = action.Winner.Players.Count + action.Loser.Players.Count;
+            int count = action.Winner.Players.Length + action.Loser.Players.Length;
 
             action.PrevAction = this.PrevAction;
             action.NextAction = this;

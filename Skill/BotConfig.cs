@@ -76,6 +76,12 @@ namespace OpenSkillBot.Skill
             get => unrankedId; set => Set(ref unrankedId, value);
         }
 
+        /// <summary>
+        /// Whether or not players must be explicitly allowed in order to join a tournament by themselves.
+        /// </summary>
+        /// <value></value>
+        public bool DenyByDefault { get; set; } = false;
+
         #endregion
 
         #region Discord related

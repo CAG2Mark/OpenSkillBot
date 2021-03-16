@@ -178,8 +178,7 @@ namespace OpenSkillBot.BotCommands
                 return;
             }
 
-            Program.CurLeaderboard.Players.Remove(player);
-            Program.CurLeaderboard.InvokeChange();
+            Program.CurLeaderboard.RemovePlayer(player);
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** has been removed from the leaderboard."));
         }

@@ -15,25 +15,34 @@ namespace OpenSkillBot.Skill {
         /// <value></value>
         public uint Ranking { get; set; } = uint.MaxValue;
 
-        private List<Player> players;
+        private List<Player> players = new List<Player>();
 
 
         [JsonProperty]
-        private IEnumerable<string> playerUUIDs { get; set; } = new List<string>();
+        private List<string> playerUUIDs { get; set; } = new List<string>();
 
         [JsonIgnoreAttribute]
-        public List<Player> Players {
+        public Player[] Players {
             get {
                 if (players == null) {
-                    players = MatchAction.UUIDListToTeam(playerUUIDs).Players;
+                    players = MatchAction.UUIDListToTeam(playerUUIDs).Players.ToList();
                 }
-                return players;
+                return players.ToArray();
             }
             set {
-                this.players = value;
-                playerUUIDs = players.Select(p => p.UUId);
+                this.players = value.ToList();
+                playerUUIDs = players.Select(p => p.UUId).ToList();
             }
         } 
+
+        public Team() {
+
+        }
+
+        public Team(IEnumerable<Player> players) {
+            this.Players = players.ToArray();
+        }
+
         public bool IsSameTeam(Team t) {
             // O(n) solution for checking equality
             // Idea from: https://stackoverflow.com/questions/14236672/fastest-way-to-check-if-two-listt-are-equal
@@ -47,6 +56,11 @@ namespace OpenSkillBot.Skill {
                 --hash[p.UUId];
             } 
             return true;
+        }
+
+        public void AddPlayer(Player p) {
+            this.players.Add(p);
+            this.playerUUIDs.Add(p.UUId);
         }
 
         public string GetPodiumString() {

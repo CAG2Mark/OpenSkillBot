@@ -53,9 +53,18 @@ namespace OpenSkillBot.Tournaments
 
         #region properties
 
+        // moderation
+
+        public List<string> Allowlist { get; set; } = new List<string>();
+        public List<string> Denylist { get; set; } = new List<string>();
+
+
         public TournamentType Format { get; set; }
         public DateTime StartTime { get; set; }
         public string Name { get; set; }
+
+        [JsonProperty]
+        public int Index { get; private set; }
 
         [JsonIgnore]
         public bool IsChallongeLinked => ChallongeId != null;
@@ -106,11 +115,12 @@ namespace OpenSkillBot.Tournaments
 
         }
 
-        public Tournament(DateTime startTime, string name, TournamentType format) {
+        public Tournament(DateTime startTime, string name, TournamentType format, int selector) {
             this.StartTime = startTime;
             this.Name = name;
             this.Format = format;
             this.Id = Player.RandomString(20);
+            this.Index = selector;
         }
 
         public async Task<ChallongeTournament> SetUpChallonge() {
@@ -197,15 +207,57 @@ namespace OpenSkillBot.Tournaments
             }
         }
 
-        public async Task<(bool, ChallongeParticipant)> AddTeam(Team t, bool silent = false) {
+        /// <summary>
+        /// Whitelists a player.
+        /// </summary>
+        /// <param name="p">The player to whitelist.</param>
+        /// <returns>Whether or not the player was removed from the blacklist automatically.</returns>
+        public bool AllowPlayer(Player p) {
+            if (!Allowlist.Contains(p.UUId)) Allowlist.Add(p.UUId);
+            var result = Denylist.Remove(p.UUId);
+            Program.Controller.SerializeTourneys();
+            return result;
+        }
+
+        /// <summary>
+        /// Blacklist a player.
+        /// </summary>
+        /// <param name="p">The player to blacklist.</param>
+        /// <returns>Whether or not the player was removed from the whitelist automatically.</returns>
+        public bool DenyPlayer(Player p) {
+            if (!Denylist.Contains(p.UUId)) Denylist.Add(p.UUId);
+            var result = Allowlist.Remove(p.UUId);
+            Program.Controller.SerializeTourneys();
+            return result;
+        }
+
+
+        /// <summary>
+        /// Allows a player to sign up to a tournament by themselves.
+        /// </summary>
+        /// <param name="p">The player trying to sign up.</param>
+        /// <returns>The result. 0 means no success, 1 means they were already in, 2 means no permission.</returns>
+        public async Task<int> Signup(Player p, string message) {
+            // check whitelist
+            if (Program.Config.DenyByDefault) {
+                if (!Allowlist.Contains(p.UUId)) return 2;
+            } else {
+                if (Denylist.Contains(p.UUId)) return 2;
+            }
+
+            var team = new Team();
+            team.AddPlayer(p);
+
+            return (await AddTeam(team, false, message)).Item1 ? 0 : 1;
+        }
+
+
+        public async Task<(bool, ChallongeParticipant)> AddTeam(Team t, bool silent = false, string message = null) {
             if (this.IsActive || this.IsCompleted) 
                 throw new Exception("You cannot add teams to a tournament that is active or completed.");
 
             if (Teams.Contains(t)) return (false, null);
             Teams.Add(t);
- 
-            if (!silent)
-                await SendMessage();
 
             // Add to challonge
             ChallongeParticipant cp = null;
@@ -220,6 +272,22 @@ namespace OpenSkillBot.Tournaments
                 await RebuildIndex();
             }
 
+            if (!silent) {
+                await SendMessage();
+            }
+
+            // get signup log channel and send
+            var chnl = Program.DiscordIO.GetChannel(Program.Config.SignupLogsChannelId);
+            if (chnl != null) {
+                var msg = $"**{t.ToString()}** joined the tournament **{this.Name}**";
+
+                if (string.IsNullOrWhiteSpace(message)) msg += "!";
+                else msg += ": " + message;
+
+                await Program.DiscordIO.SendMessage("", chnl, EmbedHelper.GenerateInfoEmbed(
+                    msg));
+            }
+
             Program.Controller.SerializeTourneys();
 
             return (true, cp);
@@ -229,13 +297,14 @@ namespace OpenSkillBot.Tournaments
             bool result = false;
 
             for (int i = 0; i < Teams.Count; ++i) {
-                if (Teams[i].Equals(t)) {
+                if (Teams[i].IsSameTeam(t)) {
                     var team = Teams[i];
                     Teams.RemoveAt(i);
-                    if (IsChallongeLinked)
+                    if (IsChallongeLinked) {
                         await Program.Challonge.DeleteParticipant((ulong)ChallongeId, team.ChallongeId);
                         // rebuild for safety
                         await RebuildIndex();
+                    }
                     result = true;
                     break;
                 }
@@ -436,16 +505,18 @@ namespace OpenSkillBot.Tournaments
             return $"{months[StartTime.Month - 1]} {StartTime.Day}, {StartTime.Year} {StartTime.Hour.ToString("00")}:{StartTime.Minute.ToString("00")}UTC";
         }
 
-        public Embed GetEmbed() {
+        public Embed GetEmbed(bool forStaff = false) {
             var eb = new EmbedBuilder()
                 .WithFooter($"ID: {Id}")
-                .WithColor(IsCompleted ? Discord.Color.LightGrey : (IsActive ? Discord.Color.Purple : Discord.Color.Blue))
-                .WithTitle(":crossed_swords: " + this.Name);
+                .WithColor(IsCompleted ? Discord.Color.LightGrey : (IsActive ? Discord.Color.Purple : Discord.Color.Blue));
+
+            if (!this.IsActive && !this.IsCompleted) eb.Title = $":crossed_swords: [{this.Index}] {this.Name}";
+            else eb.Title = ":crossed_swords: " + this.Name;
 
             eb.AddField("Time", GetTimeStr(), true);
             eb.AddField("Format", this.Format.ToString(), true);
-            eb.AddField("Players", this.Teams == null || this.Teams.Count == 0 ? "Nobody has signed up yet." : 
-                string.Join(Environment.NewLine, this.Teams.Select(p => p.GetPodiumString())));
+            eb.AddField("Players", 
+                (this.Teams == null || this.Teams.Count == 0) ? "Nobody has signed up yet." : string.Join(Environment.NewLine, this.Teams.Select(p => p.GetPodiumString())));
 
             if (IsCompleted && rankChanges != null && rankChanges.Count != 0) {
                 var sb = new StringBuilder();
@@ -453,6 +524,13 @@ namespace OpenSkillBot.Tournaments
                     sb.Append($"**{Program.CurLeaderboard.FindPlayer(rc.UUId).IGN}**: *{rc.oldRank.Name}* → *{rc.newRank.Name}*{Environment.NewLine}");
                 }
                 eb.AddField("Rank Changes", sb.ToString(), true);
+            }
+
+            if (forStaff) {
+                eb.AddField("Allowed list", this.Allowlist == null || this.Allowlist.Count == 0 ? "Nothing here." : 
+                    string.Join(Environment.NewLine, this.Allowlist.Select(p => Program.CurLeaderboard.FindPlayer(p).IGN)), true);
+                eb.AddField("Denied list", this.Denylist == null || this.Denylist.Count == 0 ? "Nothing here." : 
+                    string.Join(Environment.NewLine, this.Denylist.Select(p => Program.CurLeaderboard.FindPlayer(p).IGN)), true);
             }
 
             if (IsChallongeLinked)
@@ -593,7 +671,7 @@ namespace OpenSkillBot.Tournaments
                     throw new Exception($"Tournament type \"{format}\" not recognised.");
             }
 
-            return new Tournament(time, name, type);
+            return new Tournament(time, name, type, Program.Controller.Tourneys.Tournaments.Count + 1);
         }
     }
 }

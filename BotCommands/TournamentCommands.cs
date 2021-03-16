@@ -11,7 +11,6 @@ using System.Text.RegularExpressions;
 
 namespace OpenSkillBot.BotCommands
 {
-    [RequirePermittedRole]
     [Name("Tournament Commands")]
     public class TournamentCommands : ModuleBase<SocketCommandContext> {
 
@@ -65,7 +64,7 @@ namespace OpenSkillBot.BotCommands
         [Command("viewtournaments")]
         [Alias(new string[] {"vt"})]
         [Summary("Views all current and future tournaments.")]
-        public async Task ViewTourmanets() {
+        public async Task ViewTournaments() {
             var tourneys = Program.Controller.Tournaments;
 
             if (tourneys == null || tourneys.Count == 0) {
@@ -106,14 +105,29 @@ namespace OpenSkillBot.BotCommands
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Set the selected tournament to **{t.Name}**."));
         }
-            
+
 
         [RequirePermittedRole]
-        [Command("addparticipants")]
-        [Alias(new string[] {"ap"})]
-        [Summary("Adds participants to the selected tournament.")]
-        public async Task AddParticipantsCommand(
-            [Summary("A space-separated list of the players to add. Separate players in a team with a comma.")][Remainder] string players) {
+        [Command("viewselectedtournament")]
+        [Alias(new string[] { "vst" })]
+        [Summary("Views the tournament, including moderation information with the output.")]
+        public async Task ViewSelectedTournamnetCommand() {
+            if (selectedTourney == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
+                );
+                return;
+            }
+
+            await ReplyAsync("", false, selectedTourney.GetEmbed(true));
+        }
+
+        [RequirePermittedRole]
+        [Command("allowparticipnts")]
+        [Alias(new string[] {"alp"})]
+        [Summary("Explicitly allows participants to self-join the selected tournament.")]
+        public async Task AllowParticipantsCommand(
+            [Summary("A space-separated list of the players to explicitly allow.")][Remainder] string players) {
             
             if (selectedTourney == null) {
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
@@ -121,6 +135,121 @@ namespace OpenSkillBot.BotCommands
                 );
                 return;
             }
+            
+            var playerNames = new StringBuilder();
+
+            foreach (var t in StrListToTeams(players)) {
+                try {
+                    foreach (var p in t.Players) {
+                        if (selectedTourney.AllowPlayer(p)) {
+                            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Note: Removed {p.IGN} from the denied list."));
+                        }
+                        playerNames.Append(p.IGN + Environment.NewLine);
+                    }
+                } catch (Exception e) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                    continue;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                    $"Added the following players to the allowed list of **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
+                    playerNames.ToString()));
+            else
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+        }
+
+        [SignupsChannelOnly]
+        [Command("jointournament")]
+        [Alias(new string[] {"jt"})]
+        [Summary("Join a tournament.")]
+        public async Task JoinTournamentCommand(
+            [Summary("The a command separated list of tournaments to join, ie 1,2 to join tournaments 1 and 2.")] string tournaments = "1", 
+            [Remainder][Summary("An optional tournament join message.")] string message = null) {
+                var player = Program.CurLeaderboard.Players.FirstOrDefault(p => p.DiscordId == Context.Message.Author.Id);
+                if (player == null) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("You are not linked to the leaderboard. Please contact an administrator if you believe this is a mistake."));
+                    return;
+                }
+
+                var spl = tournaments.Split(',');
+                foreach (var t_s in spl) {
+                    try {
+                        int t = Convert.ToInt32(t_s);
+                        var tourney = Program.Controller.Tournaments.FirstOrDefault(tm => tm.Index == t);
+
+                        var res = await tourney.Signup(player, message);
+                        if (res == 0) {
+                            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"You were successfully added to the tournament **{tourney.Name}**."));
+                        }
+                        else if (res == 1) {
+                            await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"You are already in the tournament **{tourney.Name}**."));
+                        }
+                        else {
+                            await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"You do not have permission to join the tournament **{tourney.Name}**."));
+                        }
+                    }
+                    catch (Exception) {
+                        await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not infer the tournament from *{t_s}*."));
+                    }
+                }
+            }
+
+        [RequirePermittedRole]
+        [Command("denyparticipnts")]
+        [Alias(new string[] {"dnp"})]
+        [Summary("Explicitly denies participants from self-joining the selected tournament.")]
+        public async Task DenyParticipantsCommand(
+            [Summary("A space-separated list of the players to explicitly deny.")][Remainder] string players) {
+            
+            if (selectedTourney == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
+                );
+                return;
+            }
+            
+            var playerNames = new StringBuilder();
+
+            foreach (var t in StrListToTeams(players)) {
+                try {
+                    foreach (var p in t.Players) {
+                        if (selectedTourney.DenyPlayer(p)) {
+                            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Note: Removed {p.IGN} from the allow list."));
+                        }
+                        playerNames.Append(p.IGN + Environment.NewLine);
+                    }
+                } catch (Exception e) {
+                    await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                    continue;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                    $"Added the following players to the allowed list of **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
+                    playerNames.ToString()));
+            else
+                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+        }
+
+            
+
+        [RequirePermittedRole]
+        [Command("addparticipants")]
+        [Alias(new string[] {"ap"})]
+        [Summary("Adds participants to the selected tournament. Ignores the denied list.")]
+        public async Task AddParticipantsCommand(
+            [Summary("A space-separated list of the teams to add. Separate players in a team with a comma.")][Remainder] string players) {
+            
+            if (selectedTourney == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                    "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
+                );
+                return;
+            }
+
             var msg = await Program.DiscordIO.SendMessage("", 
                 Context.Channel, 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding players to the tournament **{selectedTourney.Name}**..."));
@@ -157,7 +286,7 @@ namespace OpenSkillBot.BotCommands
         [Alias(new string[] {"rp"})]
         [Summary("Removes participants from the selected tournament.")]
         public async Task RemoveParticipantsCommand(
-            [Summary("A space-separated list of the players to add. Separate players in a team with a comma.")][Remainder] string players) {
+            [Summary("A space-separated list of the teams to add. Separate players in a team with a comma.")][Remainder] string players) {
             
             if (selectedTourney == null) {
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
@@ -321,7 +450,7 @@ namespace OpenSkillBot.BotCommands
             if (!(await t.FinaliseTournament(rankingsList))) {
                 await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed("Could not finalise the tournament on Challonge."));
             }
-            else {
+            else if (t.IsChallongeLinked) {
                 await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Finalised the tournament on Challonge."));
             }
 

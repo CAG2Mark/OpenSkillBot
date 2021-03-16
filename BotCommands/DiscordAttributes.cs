@@ -32,4 +32,28 @@ namespace OpenSkillBot.BotCommands
         
         }
     }
+
+
+    public class SignupsChannelOnly : PreconditionAttribute
+    {
+
+        // Override the CheckPermissions method
+        public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
+        {
+            // Check if this user is a Guild User, which is the only context where roles exist
+            if (context.User is SocketGuildUser gUser)
+            {
+                // If this command was executed by a user with the appropriate role, return a success
+                if (context.Channel.Id == Program.Config.SignupsChannelId)
+                    // Since no async work is done, the result has to be wrapped with `Task.FromResult` to avoid compiler errors
+                    return Task.FromResult(PreconditionResult.FromSuccess());
+                // Since it wasn't, fail
+                else
+                    return Task.FromResult(PreconditionResult.FromError($"You must be in the tournaments signup channel to run this command."));
+            }
+            else
+                return Task.FromResult(PreconditionResult.FromError("You must be in a guild to run this command."));
+        
+        }
+    }
 }
