@@ -16,7 +16,7 @@ namespace OpenSkillBot.Skill {
         public double Mu;
     }
 
-    public class MatchAction
+    public class MatchAction : BotAction
     {
         public static Team UUIDListToTeam(IEnumerable<string> uuids) {
             var t = new Team();
@@ -37,11 +37,11 @@ namespace OpenSkillBot.Skill {
         }
 
 
-        public static List<MatchAction> UUIDListToMatches(IEnumerable<string> uuids) {
-            var m = new List<MatchAction>();
+        public static List<BotAction> UUIDListToMatches(IEnumerable<string> uuids) {
+            var m = new List<BotAction>();
             foreach (var uuid in uuids)
             {
-                m.Add(Program.Controller.FindMatch(uuid));
+                m.Add(Program.Controller.FindAction(uuid));
             }
             
             return m;
@@ -53,13 +53,12 @@ namespace OpenSkillBot.Skill {
 
         public bool IsDraw { get; set; }
 
-        public bool IsCancelled { get; set; }
 
         [JsonProperty]
         public bool IsTourney { get; private set; } = false;
         public string TourneyId { get; set; }
 
-        private async Task sendMessage()
+        protected override async Task sendMessage()
         {
             if (Program.Config.HistoryChannelId == 0) return;
 
@@ -83,7 +82,7 @@ namespace OpenSkillBot.Skill {
             foreach (var p in Loser.Players) await p.Undeafen();
         }
 
-        protected async Task action()
+        protected override async Task action()
         {
             TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
             await sendMessage();
@@ -91,7 +90,7 @@ namespace OpenSkillBot.Skill {
             await UndeafenPlayers();
         }
 
-        protected void undoAction()
+        protected override void undoAction()
         {
         }
 
@@ -101,7 +100,7 @@ namespace OpenSkillBot.Skill {
             ActionTime = DateTime.UtcNow;
             this.ActionId = Player.RandomString(20);
 
-            Program.Controller.AddMatchToHash(this);
+            Program.Controller.AddActionToHash(this);
 
             this.Winner = winner;
             this.Loser = loser;
@@ -114,7 +113,7 @@ namespace OpenSkillBot.Skill {
             setOldPlayerDatas();
         }
 
-        private void setOldPlayerDatas()
+        protected override void setOldPlayerDatas()
         {
 
             OldPlayerDatas = new List<OldPlayerData>();
@@ -136,134 +135,13 @@ namespace OpenSkillBot.Skill {
             //this.ActionId = Player.RandomString(16);
         }
 
-        #region copied from botaction class
 
-        public List<OldPlayerData> OldPlayerDatas = new List<OldPlayerData>();
-
-        public DateTime ActionTime;
-
-        // Dont serialise this to avoid infinite recursion. Instead, repopulate on deserialization.
-        [JsonIgnore]
-        public MatchAction NextAction { get; set; }
-        public MatchAction PrevAction { get; set; }
-
-        [JsonProperty]
-        public string ActionId { get; private set; }
-
-        [JsonProperty]
-        private ulong discordMessageId { get; set; } = 0;
-
-        public async Task DoAction(bool invokeChange = true)
-        {
-            if (IsCancelled) return;
-
-            setOldPlayerDatas();
-            await action();
-            if (invokeChange) {
-                Program.CurLeaderboard.InvokeChange(Winner.Players.Length + Loser.Players.Length);
-            }
+        protected override int getChangeCount() {
+            return Winner.Players.Length + Loser.Players.Length;
         }
 
 
-        private int mergeForwardOld()
-        {
-            var data = getCumulativeOldData();
-            Program.CurLeaderboard.MergeOldData(data);
-            Console.WriteLine("Merged old data");
-            return data.Count;
-        }
-
-        public async Task<int> Undo()
-        {
-            int count = this.Winner.Players.Length + this.Loser.Players.Length;
-
-            count += mergeForwardOld();
-
-            this.IsCancelled = true;
-            // undoAction() just does extra things that may not be covered by the default one
-            undoAction();
-
-            Program.Controller.RemoveMatchFromHash(this);
-
-            int depth = 0;
-
-            // recalculate future values
-            if (NextAction != null)
-            {
-                depth = await NextAction.ReCalculateNext();
-            }
-
-            // Unlink this node
-            var tempPrev = PrevAction;
-            var tempNext = NextAction;
-            if (PrevAction != null)
-            {
-                tempPrev.NextAction = tempNext;
-            }
-            if (NextAction != null)
-            {
-                tempNext.PrevAction = tempPrev;
-            }
-
-            Program.CurLeaderboard.InvokeChange(count);
-
-            await deleteMessage();
-
-            return depth;
-        }
-
-        public async Task<int> ReCalculateSelf() {
-            int count = Winner.Players.Length + Loser.Players.Length;
-            if (this.NextAction != null)
-            {
-                count += this.mergeForwardOld();
-            }
-
-            int depth = await ReCalculateNext();
-
-            Program.Controller.SerializeActions();
-            Program.CurLeaderboard.InvokeChange(count);
-
-            return depth;
-        }
-
-        public async Task InsertAfter(MatchAction action)
-        {
-            int count = action.Winner.Players.Length + action.Loser.Players.Length;
-            if (this.NextAction != null)
-            {
-                count += this.NextAction.mergeForwardOld();
-            }
-
-            action.NextAction = this.NextAction;
-            action.PrevAction = this;
-            this.NextAction = action;
-
-            await action.ReCalculateAndReSend();
-
-            Program.CurLeaderboard.InvokeChange(count);
-            Program.Controller.SerializeActions();
-        }
-
-        public async Task<int> InsertBefore(MatchAction action)
-        {
-            int count = action.Winner.Players.Length + action.Loser.Players.Length;
-
-            action.PrevAction = this.PrevAction;
-            action.NextAction = this;
-            this.PrevAction = action;
-
-            count += this.mergeForwardOld();
-
-            int depth = await action.ReCalculateAndReSend();
-
-            Program.CurLeaderboard.InvokeChange(count);
-            Program.Controller.SerializeActions();
-
-            return depth;
-        }
-
-        private async Task deleteMessage()
+        protected async override Task deleteMessage()
         {
             if (Program.Config.HistoryChannelId == 0 || this.discordMessageId == 0) return;
             // delete message
@@ -276,81 +154,6 @@ namespace OpenSkillBot.Skill {
         }
 
         #region Recursive functions
-
-        public Tuple<MatchAction, int> FindMatch(string id, int depth = 1)
-        {
-            // goes backwards
-            if (this.ActionId.Equals(id)) return new Tuple<MatchAction, int>(this, depth);
-            else
-            {
-                if (PrevAction != null) return this.PrevAction.FindMatch(id, depth + 1);
-                else return new Tuple<MatchAction, int>(null, depth);
-            }
-        }
-
-
-        public async Task<int> ReCalculateAndReSend()
-        {
-            await deleteMessage();
-            await DoAction(false);
-            if (this.NextAction != null)
-            {
-                return await this.NextAction.ReCalculateAndReSend() + 1;
-            }
-            return 1;
-        }
-        public async Task<int> ReCalculateNext()
-        {
-            await DoAction(false);
-
-            if (this.NextAction != null)
-            {
-                return await this.NextAction.ReCalculateNext() + 1;
-            }
-            return 1;
-        }
-
-
-        /// <summary>
-        /// Returns all the cumulative old player data for recalculation of TrueSkill.
-        /// </summary>
-        /// <returns></returns>
-        private List<OldPlayerData> getCumulativeOldData()
-        {
-            List<OldPlayerData> cumulative;
-
-            // If this is the head, start the chain
-            if (this.NextAction == null)
-            {
-                cumulative = new List<OldPlayerData>();
-            }
-            else
-            {
-                cumulative = NextAction.getCumulativeOldData();
-            }
-
-            // remove the later old player datas
-            // because we want the one closest to the start
-            foreach (var oldPlayerData in OldPlayerDatas)
-            {
-                cumulative.RemoveAll(o => o.UUId.Equals(oldPlayerData.UUId));
-            }
-
-            cumulative.AddRange(OldPlayerDatas);
-
-            return cumulative;
-        }
-
-        #endregion
-
-        public void RepopulateLinks()
-        {
-            if (this.PrevAction != null)
-            {
-                PrevAction.NextAction = this;
-                PrevAction.RepopulateLinks();
-            }
-        }
 
         #endregion
 
@@ -376,6 +179,11 @@ namespace OpenSkillBot.Skill {
         public override int GetHashCode()
         {
             return 7 * this.Winner.GetHashCode() + 17 * this.Loser.GetHashCode() + 19 * this.ActionId.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return this.Winner.ToString() + " vs " + this.Loser.ToString();
         }
     }
 

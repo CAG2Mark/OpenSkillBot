@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace OpenSkillBot.BotCommands
 {
-    [Name("Tournament Commands")]
+    [Name("Tournaments")]
     public class TournamentCommands : ModuleBase<SocketCommandContext> {
 
         [RequirePermittedRole]
@@ -57,7 +57,7 @@ namespace OpenSkillBot.BotCommands
                 $"Challonge URL: {ct.FullChallongeUrl}"
             ));
 
-            await SetCurrentTournamentCommand(Program.Controller.Tournaments.Count - 1);
+            await SetCurrentTournamentCommand(Program.Controller.Tournaments.Count);
         }
 
         [RequirePermittedRole]

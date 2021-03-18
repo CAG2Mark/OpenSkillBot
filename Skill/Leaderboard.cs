@@ -80,6 +80,7 @@ namespace OpenSkillBot.Skill
             for (int i = 0; i < players_byTs.Count; ++i) {
                 if (p.DisplayedSkill >= players_byTs[i].DisplayedSkill) {
                     players_byTs.Insert(i, p);
+                    added = true;
                     break;
                 }
             }
@@ -111,7 +112,7 @@ namespace OpenSkillBot.Skill
             players_byTs.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
         }
         
-        public Player FindPlayer(string uuid) {
+        public Player FindPlayer(string uuid, bool retry = true) {
 
             // Binary search
             int min = 0;
@@ -127,6 +128,12 @@ namespace OpenSkillBot.Skill
                 else {  
                     min = mid + 1;  
                 }  
+            }
+
+            if (retry) {
+                // sort both
+                sortBoard();
+                return FindPlayer(uuid, false);
             }
 
             return null;

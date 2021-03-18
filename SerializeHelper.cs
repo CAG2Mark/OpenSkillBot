@@ -9,12 +9,14 @@ namespace OpenSkillBot
         static JsonSerializerSettings jsSettings = new JsonSerializerSettings() { 
             ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
             PreserveReferencesHandling = PreserveReferencesHandling.All,
+            TypeNameHandling = TypeNameHandling.All
             };
 
         static JsonSerializerSettings jsSettingsIndented = new JsonSerializerSettings() { 
             ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
             PreserveReferencesHandling = PreserveReferencesHandling.All,
-            Formatting = Formatting.Indented
+            Formatting = Formatting.Indented,
+            TypeNameHandling = TypeNameHandling.All
             };
 
         public static void Serialize(object obj, string fileName, bool indent = false) {

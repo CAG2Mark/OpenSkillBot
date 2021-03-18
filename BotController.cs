@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Discord.Rest;
 using OpenSkillBot.Tournaments;
+using OpenSkillBot.Achievements;
 
 namespace OpenSkillBot
 {
@@ -92,10 +93,18 @@ namespace OpenSkillBot
     // lazy serialization technique so i dont have to write code to re-populate all the matches. instead the hash and the linked list
     // are stored together so json.net is able to serialize each by reference :)))
     public class MatchesStruct {
+        public BotAction LatestAction { get; set; }
+        // for O(1) lookup of matches :)
+        public Dictionary<string, BotAction> MatchHash { get; set; } = new Dictionary<string, BotAction>();
+    }
+
+    // support for old type, dont break old version deserialization
+    public class MatchesStructOld {
         public MatchAction LatestAction { get; set; }
         // for O(1) lookup of matches :)
         public Dictionary<string, MatchAction> MatchHash { get; set; } = new Dictionary<string, MatchAction>();
     }
+
     public class TourneyStruct {
 
         public List<Tournament> CompletedTournaments { get; set; } = new List<Tournament>();
@@ -135,7 +144,11 @@ namespace OpenSkillBot
 
         private const string tourneyFileName = "tourneys.json";
 
+        private const string achvsFileName = "achievements.json";
+
         public Leaderboard CurLeaderboard;
+
+        public AchievementsContainer Achievements = new AchievementsContainer();
 
         private Timer lbTimer = new Timer(3000);
 
@@ -151,9 +164,9 @@ namespace OpenSkillBot
         }
 
         public MatchesStruct Matches = new MatchesStruct();
-        public MatchAction LatestAction { get => Matches.LatestAction; set => Matches.LatestAction = value; }
+        public BotAction LatestAction { get => Matches.LatestAction; set => Matches.LatestAction = value; }
         // for O(1) lookup of matches :)
-        public Dictionary<string, MatchAction> MatchHash { get => Matches.MatchHash; set => Matches.MatchHash = value; }
+        public Dictionary<string, BotAction> MatchHash { get => Matches.MatchHash; set => Matches.MatchHash = value; }
         public BotController() {
             // get leaderboard
             if (File.Exists(lbFileName)) {
@@ -167,7 +180,19 @@ namespace OpenSkillBot
 
             // get action history
             if (File.Exists(ahFileName)) {
-                Matches = SerializeHelper.Deserialize<MatchesStruct>(ahFileName);
+                try {
+                    Matches = SerializeHelper.Deserialize<MatchesStruct>(ahFileName);
+                }
+                catch (JsonException) {
+                    Console.WriteLine("Could not deserialise action history. Trying to deserialise in old format.");
+                    // backwards compatibility for old version
+                    var oldVer = SerializeHelper.Deserialize<MatchesStructOld>(ahFileName);
+                    Matches.LatestAction = oldVer.LatestAction;
+                    foreach (var k in oldVer.MatchHash.Keys) {
+                        Matches.MatchHash.Add(k, oldVer.MatchHash[k]);
+                    }
+                }
+
                 if (LatestAction != null)
                     LatestAction.RepopulateLinks();
             }
@@ -180,6 +205,11 @@ namespace OpenSkillBot
             // get tournaments
             if (File.Exists(tourneyFileName)) {
                 Tourneys = SerializeHelper.Deserialize<TourneyStruct>(tourneyFileName);
+            }
+
+            // get achievements
+            if (File.Exists(achvsFileName)) {
+                Achievements = SerializeHelper.Deserialize<AchievementsContainer>(achvsFileName);
             }
 
             CurLeaderboard.LeaderboardChanged += (o,e) => {
@@ -215,6 +245,7 @@ namespace OpenSkillBot
             SerializeActions();
             SerializePending();
             SerializeTourneys();
+            SerializeAchievements();
         }
 
         public bool SerializeLeaderboard() {
@@ -262,6 +293,18 @@ namespace OpenSkillBot
             }
             catch (System.Exception) {
                 Console.WriteLine("WARNING: Failed to save tournaments!");
+                return false;
+            }
+        }
+
+        public bool SerializeAchievements() {
+            // Convert the pending players to a list of UUIDs
+            try {
+                SerializeHelper.Serialize(Achievements, achvsFileName);
+                return true;
+            }
+            catch (System.Exception) {
+                Console.WriteLine("WARNING: Failed to save achievements!");
                 return false;
             }
         }
@@ -350,17 +393,17 @@ namespace OpenSkillBot
             return action;
         }
 
-        public MatchAction FindMatch(string id) {
+        public BotAction FindAction(string id) {
             if (MatchHash.ContainsKey(id)) return MatchHash[id];
             return null;
         }
 
-        public void AddMatchToHash(MatchAction m) {
+        public void AddActionToHash(BotAction m) {
             if (MatchHash.ContainsKey(m.ActionId)) MatchHash[m.ActionId] = m;
             else MatchHash.Add(m.ActionId, m);
         }
 
-        public void RemoveMatchFromHash(MatchAction m) {
+        public void RemoveActionFromHash(BotAction m) {
             if (MatchHash.ContainsKey(m.ActionId)) MatchHash.Remove(m.ActionId);
         }
 
@@ -398,7 +441,7 @@ namespace OpenSkillBot
             return true;
         }
 
-        public async Task<MatchAction> UndoAction() {
+        public async Task<BotAction> UndoAction() {
             if (LatestAction == null) return null;
             
             var action = LatestAction;

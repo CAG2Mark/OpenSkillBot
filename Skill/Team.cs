@@ -15,7 +15,7 @@ namespace OpenSkillBot.Skill {
         /// <value></value>
         public uint Ranking { get; set; } = uint.MaxValue;
 
-        private List<Player> players = new List<Player>();
+        private List<Player> players;
 
 
         [JsonProperty]
@@ -59,6 +59,8 @@ namespace OpenSkillBot.Skill {
         }
 
         public void AddPlayer(Player p) {
+            if (this.players == null) this.players = new List<Player>();
+            
             this.players.Add(p);
             this.playerUUIDs.Add(p.UUId);
         }

@@ -79,9 +79,9 @@ namespace OpenSkillBot.Tournaments
         [JsonProperty]
         private List<string> matchUUIds { get; set; } = new List<string>();
         
-        private List<MatchAction> matches;
+        private List<BotAction> matches;
         [JsonIgnore]
-        public List<MatchAction> Matches {
+        public List<BotAction> Matches {
             get {
                 if (matches == null) matches = MatchAction.UUIDListToMatches(matchUUIds);
                 return matches;
@@ -418,7 +418,7 @@ namespace OpenSkillBot.Tournaments
         }
 
         // treat like a stack, but in reality cannot be a c# stack because of serialization
-        public MatchAction PopMatch() {
+        public BotAction PopMatch() {
             var i = this.Matches.Count - 1;
             var m = this.Matches[i];
 

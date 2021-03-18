@@ -8,6 +8,8 @@ using System.Text;
 using Newtonsoft.Json;
 using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 using Discord.WebSocket;
+using System.Collections.Generic;
+using OpenSkillBot.Achievements;
 
 namespace OpenSkillBot.Skill
 {
@@ -93,6 +95,40 @@ namespace OpenSkillBot.Skill
                 if (!refreshingRank) QueueRankRefresh();
                 Console.WriteLine("Mu of " + IGN + " set to " + value);
             }
+        }
+
+
+        [JsonProperty]
+        private List<string> achievementUUIds { get; set; } = new List<string>();
+        private List<Achievement> achievements;
+
+        [JsonIgnoreAttribute]
+        /// <summary>
+        /// A list of the achievements the player has been given.
+        /// </summary>
+        /// <value></value>
+        public List<Achievement> Achievements {
+            get {
+                if (achievements == null) achievements = Achievement.UUIDListToAchvs(achievementUUIds);
+                return achievements;
+            }
+        }
+
+        public void AddAchievement(Achievement a) {
+            if (this.achievements == null) this.achievements = new List<Achievement>();
+            achievements.Add(a);
+            achievementUUIds.Add(a.Id);
+
+            Program.Controller.SerializeLeaderboard();
+        }
+
+        public void RemoveAchievement(Achievement a) {
+            if (this.achievements == null) this.achievements = new List<Achievement>();
+
+            achievements.Remove(a);
+            achievementUUIds.Remove(a.Id);
+
+            Program.Controller.SerializeLeaderboard();
         }
 
         Timer rankRefreshTimer = new Timer(2000);
@@ -247,6 +283,7 @@ namespace OpenSkillBot.Skill
             sb.Append($"**Name**: {this.IGN}{nl}");
             sb.Append($"**Alias**: {(string.IsNullOrWhiteSpace(this.Alias) ? "None" : this.Alias)}{nl}");
             sb.Append($"**Skill**: {r(this.DisplayedSkill)} RD {r(this.Sigma)}{nl}");
+            sb.Append($"**Achievements**: {(Achievements.Count == 0 ? "No achievements." : string.Join(", ", Achievements))}{nl}");
             var user = this.DiscordId == 0 ? null : DiscordUser;
             sb.Append($"**Discord Link**: {(user == null ? "None" : $"Linked as {user.Username}#{user.DiscriminatorValue} with ID {this.DiscordId}")}{nl}");
             sb.Append($"**Bot ID:** {this.UUId}");
@@ -304,6 +341,11 @@ namespace OpenSkillBot.Skill
         public override int GetHashCode()
         {
             return this.UUId.GetHashCode() + this.DiscordId.GetHashCode() + this.Sigma.GetHashCode() + this.Mu.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return this.IGN;
         }
 
     }

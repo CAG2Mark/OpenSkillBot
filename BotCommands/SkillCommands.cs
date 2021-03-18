@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 
 namespace OpenSkillBot.BotCommands
 {
-    [Name("Skill Commands")]
+    [Name("Skill")]
     public class SkillCommands : ModuleBase<SocketCommandContext> {
 
         [RequirePermittedRole]
@@ -232,11 +232,22 @@ namespace OpenSkillBot.BotCommands
                 Context.Channel, 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Finding the match **{id}**..."));
 
-            var match = FindMatch(id);
+            var matchFound = FindMatch(id);
 
-            if (match == null) {
+            if (matchFound == null) {
                 await msg.DeleteAsync();
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
+                    ));
+                return;
+            }
+
+            MatchAction match;
+            try {
+                match = (MatchAction)matchFound;
+            }
+            catch (InvalidCastException) {
+                await msg.DeleteAsync();
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"The action with ID **{id}** is not a match action."
                     ));
                 return;
             }
@@ -426,9 +437,7 @@ namespace OpenSkillBot.BotCommands
                 var match = await Program.Controller.UndoAction();
                 if (match == null) break;
 
-                var winnerText = string.Join(", ", match.Winner.Players.Select(x => x.IGN));
-                var loserText = string.Join(", ", match.Loser.Players.Select(x => x.IGN));
-                sb.Append($"**{winnerText}** vs **{loserText}**{Environment.NewLine}");
+                sb.Append($"**{match.ToString()}**{Environment.NewLine}");
             }
 
             await msg.DeleteAsync();
@@ -466,9 +475,7 @@ namespace OpenSkillBot.BotCommands
             StringBuilder sb = new StringBuilder();
             sb.Append($"**The following match was undone:**{Environment.NewLine}{Environment.NewLine}");
 
-            var winnerText = string.Join(", ", match.Winner.Players.Select(x => x.IGN));
-            var loserText = string.Join(", ", match.Loser.Players.Select(x => x.IGN));
-            sb.Append($"**{winnerText}** vs **{loserText}**{Environment.NewLine}{Environment.NewLine}");
+            sb.Append($"**{match.ToString()}**{Environment.NewLine}{Environment.NewLine}");
 
             sb.Append($"**{depth}** subsequent match{(depth == 1 ? " was" : "es were")} re-calculated.");
             
@@ -499,17 +506,12 @@ namespace OpenSkillBot.BotCommands
                 return;
             }
 
-            var t1Str = string.Join(", ", p_match.Winner.Players.Select(p => p.IGN));
-            var t2Str = string.Join(", ", p_match.Loser.Players.Select(p => p.IGN));
-
-            if (!p_match.IsDraw) t1Str = "**" + t1Str + "**";
-
             await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
                 "**The pointer is currently on the match:**" + Environment.NewLine + Environment.NewLine +
-                t1Str + Environment.NewLine + t2Str, "ID: " + p_match.ActionId));
+                $"**{p_match.ToString()}**", "ID: " + p_match.ActionId));
         }
 
-        private static MatchAction p_match;
+        private static BotAction p_match;
         private static int p_depth = 1;
 
         [RequirePermittedRole]
@@ -562,11 +564,11 @@ namespace OpenSkillBot.BotCommands
         #endregion
 
         private const string ptrIndicator = "ptr";
-        public static MatchAction FindMatch(string id) {
+        public static BotAction FindMatch(string id) {
             if (id.Equals(ptrIndicator)) return p_match;
             if (Program.Controller.LatestAction.ActionId.Equals(id)) 
                 return Program.Controller.LatestAction;
-            return Program.Controller.FindMatch(id);
+            return Program.Controller.FindAction(id);
         }
 
         // helpers

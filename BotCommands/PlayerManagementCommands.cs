@@ -8,7 +8,7 @@ using Discord;
 namespace OpenSkillBot.BotCommands
 {
     [RequirePermittedRole]
-    [Name("Player Management Commands")]
+    [Name("Player Management")]
     public class PlayerManagementCommands : ModuleBase<SocketCommandContext>
     {
         [Command("createplayer")]

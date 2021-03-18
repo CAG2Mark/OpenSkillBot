@@ -8,6 +8,8 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using Discord.Rest;
 using System.Collections.Generic;
+using Discord.Net;
+using Discord.Net.Rest;
 
 // Most of the code here is copied from the Discord.NET documentation.
 
@@ -16,7 +18,6 @@ namespace OpenSkillBot.BotInputs
     public class DiscordInput {
 
         private DiscordSocketClient client;
-        private CommandHandler commandHandler;
 
         public CommandService Commands;
         private IServiceProvider provider;
@@ -29,6 +30,7 @@ namespace OpenSkillBot.BotInputs
             
             var cfg = new DiscordSocketConfig();
             cfg.AlwaysDownloadUsers = true;
+            cfg.RestClientProvider = DefaultRestClientProvider.Create(useProxy:true);
 
             client = new DiscordSocketClient(cfg);
 
@@ -139,7 +141,12 @@ namespace OpenSkillBot.BotInputs
                             .WithTimestamp(val.Item2);
                         embed.Description = "**" + msg.Source + "**: " + text;
 
-                        await SendMessage("", channel, embed.Build());
+                        try {
+                            await SendMessage("", channel, embed.Build());
+                        }
+                        catch (HttpException e) {
+                            Console.WriteLine("Failed to send log message:" + Environment.NewLine + Environment.NewLine + e.ToString());
+                        }
                     }
                 }
                 catch (Exception) {
@@ -206,6 +213,11 @@ namespace OpenSkillBot.BotInputs
             var channel = GetChannel(channelId);
             return await channel.GetMessageAsync(messageId);
         }
+
+        public async Task<IMessage> GetMessage(ulong messageId, ISocketMessageChannel channel) {
+            return await channel.GetMessageAsync(messageId);
+        }
+
 
         public async Task EditMessage(ulong messageId, ulong channelId, string newText, Embed embed = null) {
             try {
