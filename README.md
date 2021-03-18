@@ -21,9 +21,9 @@ Currently working features:
 * Tournaments
   * Challonge integration
   * Self-service sign up
+* Achievements
 
 Planned features (non-exhaustive):
-* Achievements
 * Self-service match confirmation
 
 # Prerequisites
