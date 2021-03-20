@@ -1,4 +1,5 @@
 # OpenSkillBot
+![OpenSkillBot Logo](https://raw.githubusercontent.com/CAG2Mark/OpenSkillBot/master/osb.png)
 An open source bot for Discord Servers to calculate and store the TrueSkill of players with Challonge integration.
 
 # Status of Features
@@ -21,9 +22,9 @@ Currently working features:
 * Tournaments
   * Challonge integration
   * Self-service sign up
+* Achievements
 
 Planned features (non-exhaustive):
-* Achievements
 * Self-service match confirmation
 
 # Prerequisites
