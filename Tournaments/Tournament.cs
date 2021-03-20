@@ -8,6 +8,7 @@ using Discord.Rest;
 using Newtonsoft.Json;
 using OpenSkillBot.BotCommands;
 using OpenSkillBot.ChallongeAPI;
+using OpenSkillBot.Serialization;
 using OpenSkillBot.Skill;
 
 namespace OpenSkillBot.Tournaments
@@ -48,7 +49,7 @@ namespace OpenSkillBot.Tournaments
         }
     }
 
-    public class Tournament
+    public class Tournament : IComparable
     {
 
         #region properties
@@ -61,6 +62,7 @@ namespace OpenSkillBot.Tournaments
 
         public TournamentType Format { get; set; }
         public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
         public string Name { get; set; }
 
         [JsonProperty]
@@ -185,9 +187,8 @@ namespace OpenSkillBot.Tournaments
             this.MatchInfos = newList;
         }
 
-        public async Task SetIsActive(bool isActive) {
+        public async Task Start(bool isActive) {
             IsActive = isActive;
-            await SendMessage();
 
 
             if (isActive) {
@@ -199,12 +200,17 @@ namespace OpenSkillBot.Tournaments
                     }
                 }
 
+                this.StartTime = DateTime.UtcNow;
+
                 // update challonge
                 if (IsChallongeLinked) {
                     await Program.Challonge.StartTournament((ulong)this.ChallongeId);
                     await RebuildIndex();
                 }
             }
+
+            await SendMessage();
+
         }
 
         /// <summary>
@@ -430,13 +436,15 @@ namespace OpenSkillBot.Tournaments
 
 
         /// <summary>
-        /// Finalises the tournament.
+        /// Finalizes the tournament.
         /// </summary>
-        /// <returns>False if the match was not properly finalised on Challonge.</returns>
-        public async Task<bool> FinaliseTournament(List<MatchRanking> rankings = null) {
+        /// <returns>False if the match was not properly finalized on Challonge.</returns>
+        public async Task<bool> FinalizeTournament(List<MatchRanking> rankings = null) {
             if (this.IsCompleted) return true;
 
             this.IsCompleted = true;
+
+            this.EndTime = DateTime.UtcNow;
 
             // finalise on challonge
             if (IsChallongeLinked) {
@@ -479,10 +487,25 @@ namespace OpenSkillBot.Tournaments
                 }
             }
 
+
+            // increment everyone's tournament missed count but reset those who played in this one later
+            foreach (var p in Program.CurLeaderboard.Players) {
+                ++p.TournamentsMissed;
+            }
+
+            // add this tournament to the player's list of tournaments
+            foreach (var t in Teams) {
+                foreach (var p in t.Players) {
+                    p.Tournaments.Insert(t => t.Tournament.Equals(this), new TourneyContainer(this));
+                    p.TournamentsMissed = 0;
+                }
+            }
+
             Program.Controller.SerializeTourneys();
+            Program.Controller.SerializeLeaderboard();
             // move this tournaments to the completed section for archival
             Program.Controller.Tourneys.Tournaments.Remove(this);
-            Program.Controller.Tourneys.CompletedTournaments.Add(this);
+            Program.Controller.Tourneys.CompletedTournaments.Add(this.Id, this);
             Program.Controller.Tourneys.ActiveTournament = null;
 
             await SendMessage();
@@ -500,9 +523,14 @@ namespace OpenSkillBot.Tournaments
             return message;
         }
 
-        public string GetTimeStr() {
+        public string GetStartTimeStr() {
             string[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
             return $"{months[StartTime.Month - 1]} {StartTime.Day}, {StartTime.Year} {StartTime.Hour.ToString("00")}:{StartTime.Minute.ToString("00")}UTC";
+        }
+
+        public string GetEndTimeStr() {
+            string[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+            return $"{months[EndTime.Month - 1]} {EndTime.Day}, {EndTime.Year} {EndTime.Hour.ToString("00")}:{EndTime.Minute.ToString("00")}UTC";
         }
 
         public Embed GetEmbed(bool forStaff = false) {
@@ -513,7 +541,8 @@ namespace OpenSkillBot.Tournaments
             if (!this.IsActive && !this.IsCompleted) eb.Title = $":crossed_swords: [{this.Index}] {this.Name}";
             else eb.Title = ":crossed_swords: " + this.Name;
 
-            eb.AddField("Time", GetTimeStr(), true);
+            eb.AddField(IsActive || IsCompleted ? "Started at" : "Starts at", GetStartTimeStr(), true);
+            if (IsCompleted) eb.AddField("Ended at", GetEndTimeStr(), true);
             eb.AddField("Format", this.Format.ToString(), true);
             eb.AddField("Players", 
                 (this.Teams == null || this.Teams.Count == 0) ? "Nobody has signed up yet." : string.Join(Environment.NewLine, this.Teams.Select(p => p.GetPodiumString())));
@@ -585,6 +614,7 @@ namespace OpenSkillBot.Tournaments
             return 13 * StartTime.GetHashCode() + 13 * ChallongeId.GetHashCode() + 7 * Name.GetHashCode() + 7 * Teams.GetHashCode() + 3 * Id.GetHashCode();
         }
 
+
         public static string TournamentTypeStr(TournamentType type) {
             switch (type) {
                 case TournamentType.DoubleElim:
@@ -599,6 +629,11 @@ namespace OpenSkillBot.Tournaments
             return null;
         }
 
+        public static IEnumerable<Tournament> UUIDListToTournaments(IEnumerable<string> uuids) {
+            foreach (var uuid in uuids) {
+                yield return Program.Controller.Tourneys.CompletedTournaments[uuid];
+            }
+        } 
 
         public static Tournament GenerateTournament(string name, ushort utcTime, string calendarDate, string format="double_elimimation") {
                         var now = DateTime.UtcNow;
@@ -672,6 +707,11 @@ namespace OpenSkillBot.Tournaments
             }
 
             return new Tournament(time, name, type, Program.Controller.Tourneys.Tournaments.Count + 1);
+        }
+
+        public int CompareTo(object obj)
+        {
+            return EndTime.CompareTo(((Tournament)obj).EndTime);
         }
     }
 }

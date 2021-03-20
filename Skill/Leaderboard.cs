@@ -200,6 +200,10 @@ namespace OpenSkillBot.Skill
             foreach (var player in Players) {
                 player.Mu = Program.Config.DefaultMu;
                 player.Sigma = Program.Config.DefaultSigma;
+                player.TournamentsMissed = 0;
+                player.Tournaments = new PriorityQueue<Serialization.TourneyContainer>(true);
+                player.Actions = new PriorityQueue<Serialization.ActionContainer>(true);
+
                 await Task.Delay(200);
             }
             this.InvokeChange();

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using Discord.Rest;
 using OpenSkillBot.Tournaments;
 using OpenSkillBot.Achievements;
+using OpenSkillBot.Serialization;
 
 namespace OpenSkillBot
 {
@@ -107,7 +108,7 @@ namespace OpenSkillBot
 
     public class TourneyStruct {
 
-        public List<Tournament> CompletedTournaments { get; set; } = new List<Tournament>();
+        public IDictionary<string, Tournament> CompletedTournaments { get; set; } = new Dictionary<string, Tournament>();
 
         public List<Tournament> Tournaments { get; set; } = new List<Tournament>();
 
@@ -426,7 +427,7 @@ namespace OpenSkillBot
 
         public async Task<bool> StartTournament(Tournament t) {
             if (t.IsActive) return false;
-            await t.SetIsActive(true);
+            await t.Start(true);
             // Tourneys.ActiveTournament = t;
             SerializeTourneys();
             return true;
@@ -434,7 +435,7 @@ namespace OpenSkillBot
 
         public async Task<bool> ForceStop(Tournament t) {
             // if (!Tourneys.ActiveTournament.IsActive) return false;
-            await t.SetIsActive(false);
+            await t.Start(false);
             
             SerializeTourneys();
 

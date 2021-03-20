@@ -29,7 +29,7 @@ namespace OpenSkillBot.BotCommands
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
                 $"Created the tournament **{tournamentName}**:" + Environment.NewLine + Environment.NewLine +
-                $"Date: {tourney.GetTimeStr()}" + Environment.NewLine
+                $"Date: {tourney.GetStartTimeStr()}" + Environment.NewLine
             ));
 
             // set to this
@@ -53,7 +53,7 @@ namespace OpenSkillBot.BotCommands
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
                 $"Created the tournament **{tournamentName}**:" + Environment.NewLine + Environment.NewLine +
-                $"Date: {tourney.GetTimeStr()}" + Environment.NewLine +
+                $"Date: {tourney.GetStartTimeStr()}" + Environment.NewLine +
                 $"Challonge URL: {ct.FullChallongeUrl}"
             ));
 
@@ -74,7 +74,7 @@ namespace OpenSkillBot.BotCommands
 
             var eb = new EmbedBuilder().WithColor(Discord.Color.Blue);
             for (int i = 0; i < tourneys.Count; ++i) {
-                eb.AddField((i+1) + " - " + tourneys[i].Name, "Time: " + tourneys[i].GetTimeStr());
+                eb.AddField((i+1) + " - " + tourneys[i].Name, "Time: " + tourneys[i].GetStartTimeStr());
             }
             await ReplyAsync("", false, eb.Build());
         }
@@ -447,7 +447,7 @@ namespace OpenSkillBot.BotCommands
                 }
             }
 
-            if (!(await t.FinaliseTournament(rankingsList))) {
+            if (!(await t.FinalizeTournament(rankingsList))) {
                 await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed("Could not finalise the tournament on Challonge."));
             }
             else if (t.IsChallongeLinked) {

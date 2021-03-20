@@ -10,7 +10,7 @@ using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 
 namespace OpenSkillBot.Skill
 {
-    public abstract class BotAction
+    public abstract class BotAction : IComparable
     {
         protected abstract Task action();
 
@@ -39,6 +39,9 @@ namespace OpenSkillBot.Skill
         [JsonProperty]
         protected ulong discordMessageId { get; set; } = 0;
 
+        protected abstract void addToPlayerActions();
+        protected abstract void removeFromPlayerActions();
+
         protected abstract int getChangeCount();
 
         public virtual async Task DoAction(bool invokeChange = true)
@@ -49,6 +52,8 @@ namespace OpenSkillBot.Skill
             if (invokeChange) {
                 Program.CurLeaderboard.InvokeChange(getChangeCount());
             }
+
+            addToPlayerActions();
         }
 
         protected int mergeForwardOld()
@@ -69,7 +74,8 @@ namespace OpenSkillBot.Skill
             // undoAction() just does extra things that may not be covered by the default one
             undoAction();
 
-            // Todo: change
+            removeFromPlayerActions();
+            
             Program.Controller.RemoveActionFromHash(this);
 
             int depth = 0;
@@ -255,6 +261,11 @@ namespace OpenSkillBot.Skill
         public override int GetHashCode()
         {
             return 7 * this.getChangeCount().GetHashCode() + 19 * this.ActionId.GetHashCode();
+        }
+
+        public int CompareTo(object obj)
+        {
+            return ActionTime.CompareTo(((BotAction)obj).ActionTime);
         }
     }
 }

@@ -80,9 +80,9 @@ namespace OpenSkillBot.BotCommands
                 var t1_s = t1.ToString();
                 var t2_s = t2.ToString();
 
-                var team1Win = TrueskillWrapper.GetMatchResult(t1.Players, t2.Players);
-                var team2Win = TrueskillWrapper.GetMatchResult(t2.Players, t1.Players);
-                var draw = TrueskillWrapper.GetMatchResult(t1.Players, t2.Players, true);
+                var team1Win = SkillWrapper.GetMatchResult(t1.Players, t2.Players);
+                var team2Win = SkillWrapper.GetMatchResult(t2.Players, t1.Players);
+                var draw = SkillWrapper.GetMatchResult(t1.Players, t2.Players, true);
 
                 var embed = new EmbedBuilder()
                     .WithColor(Discord.Color.Blue)
@@ -227,6 +227,12 @@ namespace OpenSkillBot.BotCommands
         public async Task EditMatchCommand([Summary("The match that will be edited.")] string id, [Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
             [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
 
+            if (result == -1) {
+                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed("As -1 was given as the result, the given match will be undone."));
+                await this.UndoCommand(id);
+                return;
+            }
+
             // this code is to find the match to insert before
             var msg = await Program.DiscordIO.SendMessage("", 
                 Context.Channel, 
@@ -281,10 +287,7 @@ namespace OpenSkillBot.BotCommands
                 var t2_s = string.Join(", ", t2.Players.Select(x => x.IGN));
 
                 // Edit the match and recalculate.
-                match.Winner = t1;
-                match.Loser = t2;
-                match.IsDraw = result == 0;
-                int depth = await match.ReCalculateSelf() - 1;
+                int depth = await match.Edit(t1, t2, result == 0);
 
                 // Output it
                 string output = $"The match has been edited to **{t1_s}** vs **{t2_s}**." + 

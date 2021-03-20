@@ -10,6 +10,7 @@ using Discord.WebSocket;
 using OpenSkillBot.BotInputs;
 using OpenSkillBot.ChallongeAPI;
 using OpenSkillBot.Skill;
+using OpenSkillBot.Serialization;
 
 
 // Perms integer: 29486144
@@ -58,10 +59,10 @@ namespace OpenSkillBot
 
             Config.PropertyChanged += (o, e) => SerializeConfig();
 
-            var initTime = DateTime.UtcNow;
-
             DiscordIO = new DiscordInput(DiscordToken);
 
+            var initTime = DateTime.UtcNow;
+            
             Controller = new BotController();
 
             var doneTime = DateTime.UtcNow;

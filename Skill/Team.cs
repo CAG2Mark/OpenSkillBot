@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
@@ -21,8 +22,8 @@ namespace OpenSkillBot.Skill {
         [JsonProperty]
         private List<string> playerUUIDs { get; set; } = new List<string>();
 
-        [JsonIgnoreAttribute]
-        public Player[] Players {
+        [JsonIgnore]
+        public IEnumerable<Player> Players {
             get {
                 if (players == null) {
                     players = MatchAction.UUIDListToTeam(playerUUIDs).Players.ToList();

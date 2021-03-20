@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Discord.Rest;
 using Newtonsoft.Json;
 using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
+using OpenSkillBot.Serialization;
 
 namespace OpenSkillBot.Skill {
 
@@ -84,7 +85,7 @@ namespace OpenSkillBot.Skill {
 
         protected override async Task action()
         {
-            TrueskillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
+            SkillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
             await sendMessage();
             // undeafen the users
             await UndeafenPlayers();
@@ -135,9 +136,28 @@ namespace OpenSkillBot.Skill {
             //this.ActionId = Player.RandomString(16);
         }
 
+        Func<ActionContainer, bool> predicate => p => p.Action.Equals(this);
+
+        protected override void addToPlayerActions() {
+            foreach (var p in this.Winner.Players) {
+                p.Actions.Insert(predicate, new ActionContainer(this));
+            }
+            foreach (var p in this.Loser.Players) {
+                p.Actions.Insert(predicate, new ActionContainer(this));
+            }
+        }
+        protected override void removeFromPlayerActions() {
+            foreach (var p in this.Winner.Players) {
+                p.Actions.Delete(predicate);
+            }
+            foreach (var p in this.Loser.Players) {
+                p.Actions.Delete(predicate);
+            }
+        }
+
 
         protected override int getChangeCount() {
-            return Winner.Players.Length + Loser.Players.Length;
+            return Winner.Players.Count() + Loser.Players.Count();
         }
 
 
@@ -153,9 +173,18 @@ namespace OpenSkillBot.Skill {
             }
         }
 
-        #region Recursive functions
+        public async Task<int> Edit(Team winner, Team loser, bool isDraw) {
+            removeFromPlayerActions();
 
-        #endregion
+            this.Winner = winner;
+            this.Loser = loser;
+
+            addToPlayerActions();
+
+            this.IsDraw = isDraw;
+            return await this.ReCalculateSelf() - 1;
+        }
+
 
         // override object.Equals
         public override bool Equals(object obj)
@@ -187,7 +216,7 @@ namespace OpenSkillBot.Skill {
         }
     }
 
-    public static class TrueskillWrapper {
+    public static class SkillWrapper {
         public static GameInfo info = new GameInfo(
             Program.Config.DefaultMu,
             Program.Config.DefaultSigma,
@@ -262,6 +291,28 @@ namespace OpenSkillBot.Skill {
             }
 
             return returns;
+        }
+
+        // Credit: Adapted from code from Llew Vallis. https://github.com/LlewVallis
+        
+        public static (double Mu, double Sigma) Decay(Player original, int intensity) {
+            double mu = original.Mu;
+            double sigma = original.Sigma;
+
+            double upperBound = mu + Program.Config.TrueSkillDeviations * sigma;
+
+            double newMu = Gompertz(mu, intensity);
+            double newSigma = Gompertz(sigma, intensity);
+            double newUpperBound = newMu + Program.Config.TrueSkillDeviations * newSigma;
+
+            double adjustmentFactor = newUpperBound - upperBound;
+            newMu = newMu - adjustmentFactor;
+
+            return (newMu, newSigma);
+        }
+
+        private static double Gompertz(double value, int intensity) {
+            return (Math.Exp(-10 * Math.Exp(-0.6 * intensity)) * 17 / 18 + 1 - Math.Exp(-10)) * value;
         }
     }
 }

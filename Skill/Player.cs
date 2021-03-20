@@ -10,6 +10,8 @@ using JsonIgnoreAttribute = Newtonsoft.Json.JsonIgnoreAttribute;
 using Discord.WebSocket;
 using System.Collections.Generic;
 using OpenSkillBot.Achievements;
+using OpenSkillBot.Tournaments;
+using OpenSkillBot.Serialization;
 
 namespace OpenSkillBot.Skill
 {
@@ -56,6 +58,27 @@ namespace OpenSkillBot.Skill
         /// </summary>
         /// <value></value>
         public ulong DiscordId { get => discordId; set { discordId = value; discordUser = null; }}
+
+        /* 
+        
+        The actions and tournaments are stored in a priority queue to make it fast to check for the latest tournament or match the player was in.
+
+        This is to help the implementation of the built-in rank decay.
+
+        */
+
+
+        /// <summary>
+        /// The actions this person is a part of.
+        /// </summary>
+        public PriorityQueue<ActionContainer> Actions { get; set; } = new PriorityQueue<ActionContainer>(true);
+
+        /// <summary>
+        /// The tournaments this person is a part of.
+        /// </summary>
+        public PriorityQueue<TourneyContainer> Tournaments { get; set; } = new PriorityQueue<TourneyContainer>(true);
+
+        public uint TournamentsMissed { get; set; } = 0;
 
         private SocketGuildUser discordUser;
         [JsonIgnoreAttribute]
@@ -284,6 +307,8 @@ namespace OpenSkillBot.Skill
             sb.Append($"**Alias**: {(string.IsNullOrWhiteSpace(this.Alias) ? "None" : this.Alias)}{nl}");
             sb.Append($"**Skill**: {r(this.DisplayedSkill)} RD {r(this.Sigma)}{nl}");
             sb.Append($"**Achievements**: {(Achievements.Count == 0 ? "No achievements." : string.Join(", ", Achievements))}{nl}");
+            sb.Append($"**Matches:** {Actions.Where(a => a != null && a.Action.GetType() == typeof(MatchAction)).Count()}{nl}");
+            sb.Append($"**Tournaments:** {Tournaments.Count() - 1}{nl}");
             var user = this.DiscordId == 0 ? null : DiscordUser;
             sb.Append($"**Discord Link**: {(user == null ? "None" : $"Linked as {user.Username}#{user.DiscriminatorValue} with ID {this.DiscordId}")}{nl}");
             sb.Append($"**Bot ID:** {this.UUId}");

@@ -80,7 +80,7 @@ namespace OpenSkillBot.Skill
 
             embed.Title = w_s + " vs " + l_s;
 
-            embed.AddField($"Winner{(winner.Players.Length == 1 ? "" : "s")}:", action.IsDraw ? "The match ended in a draw" : w_s);
+            embed.AddField($"Winner{(winner.Players.Count() == 1 ? "" : "s")}:", action.IsDraw ? "The match ended in a draw" : w_s);
             embed.AddField("Skill Changes", deltas);
 
             if (!string.IsNullOrWhiteSpace(rankChanges.ToString())) {
