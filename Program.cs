@@ -62,8 +62,9 @@ namespace OpenSkillBot
             DiscordIO = new DiscordInput(DiscordToken);
 
             var initTime = DateTime.UtcNow;
-            
-            Controller = new BotController();
+
+            Controller = new BotController(true);
+            // Controller.Initialize();
 
             var doneTime = DateTime.UtcNow;
 

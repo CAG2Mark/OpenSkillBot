@@ -489,8 +489,14 @@ namespace OpenSkillBot.Tournaments
 
 
             // increment everyone's tournament missed count but reset those who played in this one later
+
+            // feel free to change the condition needed to increase the decay cycle. this is just one i've seen used
             foreach (var p in Program.CurLeaderboard.Players) {
                 ++p.TournamentsMissed;
+
+                var lastTourneyTime = Program.Controller.Tourneys.CompletedTournaments.Values.Max(t => t.EndTime);
+                if (p.Actions.Top() == null || p.Actions.Top().Action.ActionTime < lastTourneyTime)
+                    ++p.DecayCycle;
             }
 
             // add this tournament to the player's list of tournaments
@@ -498,6 +504,7 @@ namespace OpenSkillBot.Tournaments
                 foreach (var p in t.Players) {
                     p.Tournaments.Insert(t => t.Tournament.Equals(this), new TourneyContainer(this));
                     p.TournamentsMissed = 0;
+                    p.DecayCycle = 0;
                 }
             }
 

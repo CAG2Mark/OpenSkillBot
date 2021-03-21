@@ -30,7 +30,13 @@ namespace OpenSkillBot.Skill
         private List<string> permittedRoleNames = new List<string>();
         private string challongeToken;
         private List<Rank> ranks = new List<Rank>();
-        public ulong unrankedId;
+        private ulong unrankedId;
+
+        private double unrankedRDThreshold = 75;
+
+        public ushort decayCyclesUntilDecay = 4;
+
+        public double decayThreshold = 0; // set yourself, anyone below this threshold will not be decayed
 
 
         public BotConfig()
@@ -74,6 +80,24 @@ namespace OpenSkillBot.Skill
         public ulong UnrankedId
         {
             get => unrankedId; set => Set(ref unrankedId, value);
+        }
+
+
+        public bool UnrankedEnabled => UnrankedRDThreshold > 0;
+
+        public double UnrankedRDThreshold
+        {
+            get => unrankedRDThreshold; set => Set(ref unrankedRDThreshold, value);
+        }
+
+        public ushort DecayCyclesUntilDecay
+        {
+            get => decayCyclesUntilDecay; set => Set(ref decayCyclesUntilDecay, value);
+        }
+
+        public double DecayThreshold
+        {
+            get => decayThreshold; set => Set(ref decayThreshold, value);
         }
 
         /// <summary>

@@ -40,6 +40,7 @@ namespace OpenSkillBot
         }
 
         public T Top() {
+            if (Count == 1) return default;
             return this[1];
         }
 

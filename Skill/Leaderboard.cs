@@ -7,44 +7,6 @@ using System.Threading.Tasks;
 
 namespace OpenSkillBot.Skill
 {
-    public class Rank {
-        public Rank(int lowerBound, ulong roleId, string name) {
-            this.LowerBound = lowerBound;
-            this.RoleId = roleId;
-            this.Name = name;
-        }
-
-        public int LowerBound { get; }
-        public ulong RoleId { get; }
-        public string Name { get; }
-
-        // override object.Equals
-        public override bool Equals(object obj)
-        {
-            //
-            // See the full list of guidelines at
-            //   http://go.microsoft.com/fwlink/?LinkID=85237
-            // and also the guidance for operator== at
-            //   http://go.microsoft.com/fwlink/?LinkId=85238
-            //
-            
-            if (obj == null || GetType() != obj.GetType())
-            {
-                return false;
-            }
-
-            var rank = (Rank)obj;
-            return this.LowerBound == rank.LowerBound && this.Name.Equals(rank.Name) && this.RoleId == rank.RoleId;
-        }
-        
-        // override object.GetHashCode
-        public override int GetHashCode()
-        {
-            return this.LowerBound.GetHashCode() * 17 + this.RoleId.GetHashCode() * 7 + this.Name.GetHashCode();
-        }
-    }
-
-
     public class Leaderboard
     {
 
@@ -193,6 +155,8 @@ namespace OpenSkillBot.Skill
 
                 found.Sigma = old.Sigma;
                 found.Mu = old.Mu;
+                found.DecayCycle = old.DecayCycle;
+                found.LastDecay = old.LastDecay;
             }
         }
 
@@ -201,6 +165,8 @@ namespace OpenSkillBot.Skill
                 player.Mu = Program.Config.DefaultMu;
                 player.Sigma = Program.Config.DefaultSigma;
                 player.TournamentsMissed = 0;
+                player.DecayCycle = 0;
+                player.LastDecay = 0;
                 player.Tournaments = new PriorityQueue<Serialization.TourneyContainer>(true);
                 player.Actions = new PriorityQueue<Serialization.ActionContainer>(true);
 
@@ -236,21 +202,40 @@ namespace OpenSkillBot.Skill
             var nl = Environment.NewLine;
             var sb = new StringBuilder();
 
+            bool inUnrankedRegion = false;
+
+            var copy = players_byTs.ToList();
+
+            var ogCnt = copy.Count;
+
             int p = 0;
-            foreach(var player in players_byTs) {
+            for (int j = 0; j < copy.Count; ++j) {
+
+                var player = copy[j];
+
+                inUnrankedRegion = j >= ogCnt;
+
                 var nextStr = "";
 
                 // print ranks in the correct position
-                // looks to be O(n^2) but is actually O(n)
                 var ranks = Program.Config.Ranks;
                 for (int i = p; i < ranks.Count; ++i) {
-                    if (i == 0 || ranks[i - 1].LowerBound > player.DisplayedSkill) {
+                    if (i == 0 || ranks[i - 1].CompareTo(player.PlayerRank) > 0) {
                         nextStr += "**" + ranks[i].Name + "**" + nl;
                         p = i + 1;
                     }
                 }
-                
-                nextStr += $"{player.IGN}: {Math.Round(player.DisplayedSkill).ToString("#")} RD {Math.Round(player.Sigma).ToString("#")}{nl}";
+
+                // ignore unranked. push to the end
+                if (player.IsUnranked && !inUnrankedRegion) {
+                    copy.Add(player);
+                }
+                else {
+                    // unranked title
+                    if (j == ogCnt) nextStr += $"**{Rank.GetUnrankedRank().Name}**{nl}";
+                    
+                    nextStr += $"{player.IGN}: {Math.Round(player.DisplayedSkill).ToString("#")} RD {Math.Round(player.Sigma).ToString("#")}{nl}";
+                }
 
                 if (sb.Length + nextStr.Length > charLimit) {
                     yield return sb.ToString();

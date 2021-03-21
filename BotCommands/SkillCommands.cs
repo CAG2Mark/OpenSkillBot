@@ -130,6 +130,44 @@ namespace OpenSkillBot.BotCommands
             await ReplyAsync("", false, (await FullMatch(team1, team2, result)).Item2);
         }
 
+        [RequirePermittedRole]
+        [Command("decay")]
+        [Summary("Decays players' ranks.")]
+        public async Task DecayPlayersCommand(
+            [Remainder][Summary("The players to decay. Leave empty to automatically determine them, or type \"all\" to decay all players.")] string players = null
+        ) {
+
+            List<Player> toDecay = new List<Player>();
+
+            if (string.IsNullOrEmpty(players)) {
+                toDecay = DecayAction.GetPlayersToDecay().ToList();
+            } else if (players.ToLower().Trim().Equals("all")) {
+                toDecay = Program.CurLeaderboard.Players;
+            } else {
+                var teams = TournamentCommands.StrListToTeams(players);
+
+                foreach (var t in teams) {
+                    foreach (var p in t.Players) {
+                        toDecay.Add(p);
+                    }
+                }
+            }
+
+            if (toDecay.Count == 0) {
+                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
+                    "No players to decay."));
+                return;
+            }
+
+            var da = new DecayAction(toDecay);
+            await Program.Controller.AddAction(da);
+
+            var output = string.Join(", ", toDecay.Select(p => p.IGN));
+
+            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                "Decayed the following players: " + Environment.NewLine + Environment.NewLine + output));
+        }
+
         // allow this code to also be used for !tournamentfullmatch (!tfm)
         public static async Task<Tuple<MatchAction, Embed>> FullMatch(string team1, string team2, int result = 1, bool isTourney = false) {
             try {

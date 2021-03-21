@@ -50,7 +50,7 @@ namespace OpenSkillBot.BotCommands
                 return;
             }
 
-            np.DiscordId = id;
+            np.LinkDiscord(id);
             await np.UpdateRank(true);
             
             Program.Controller.CurLeaderboard.AddPlayer(np);
@@ -87,10 +87,8 @@ namespace OpenSkillBot.BotCommands
                 return;
             }
 
-            player.DiscordId = id;
+            player.LinkDiscord(id);
             await player.UpdateRank(true);
-
-            Program.Controller.SerializeLeaderboard();
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** is now linked to **{user.Username}#{user.DiscriminatorValue}**"));
         }
@@ -107,9 +105,7 @@ namespace OpenSkillBot.BotCommands
                 return;
             }
 
-            player.DiscordId = 0;
-
-            Program.Controller.SerializeLeaderboard();
+            player.UnlinkDiscord();
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** has been unlinked."));
         }

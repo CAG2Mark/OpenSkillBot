@@ -15,6 +15,10 @@ namespace OpenSkillBot.Skill {
         public string UUId;
         public double Sigma;
         public double Mu;
+
+        public uint DecayCycle;
+
+        public uint LastDecay;
     }
 
     public class MatchAction : BotAction
@@ -86,7 +90,6 @@ namespace OpenSkillBot.Skill {
         protected override async Task action()
         {
             SkillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
-            await sendMessage();
             // undeafen the users
             await UndeafenPlayers();
         }
@@ -96,12 +99,8 @@ namespace OpenSkillBot.Skill {
         }
 
         // Currently only supports matches between two teams
-        public MatchAction(Team winner, Team loser, bool isDraw = false, bool isTourney = false, bool cancelled = false)
+        public MatchAction(Team winner, Team loser, bool isDraw = false, bool isTourney = false, bool cancelled = false) : base()
         {
-            ActionTime = DateTime.UtcNow;
-            this.ActionId = Player.RandomString(20);
-
-            Program.Controller.AddActionToHash(this);
 
             this.Winner = winner;
             this.Loser = loser;
@@ -121,11 +120,11 @@ namespace OpenSkillBot.Skill {
 
             foreach (var p in Winner.Players)
             {
-                OldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId });
+                OldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId, DecayCycle = p.DecayCycle });
             }
             foreach (var p in Loser.Players)
             {
-                OldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId });
+                OldPlayerDatas.Add(new OldPlayerData() { Sigma = p.Sigma, Mu = p.Mu, UUId = p.UUId, DecayCycle = p.DecayCycle });
             }
         }
 
@@ -293,26 +292,26 @@ namespace OpenSkillBot.Skill {
             return returns;
         }
 
-        // Credit: Adapted from code from Llew Vallis. https://github.com/LlewVallis
-        
-        public static (double Mu, double Sigma) Decay(Player original, int intensity) {
+        public static (double Mu, double Sigma) Decay(Player original) {
+            uint t = original.DecayCycle / Program.Config.DecayCyclesUntilDecay;
+
             double mu = original.Mu;
             double sigma = original.Sigma;
 
-            double upperBound = mu + Program.Config.TrueSkillDeviations * sigma;
 
-            double newMu = Gompertz(mu, intensity);
-            double newSigma = Gompertz(sigma, intensity);
-            double newUpperBound = newMu + Program.Config.TrueSkillDeviations * newSigma;
+            double ogSigma = sigma / Gompertz(original.LastDecay / Program.Config.decayCyclesUntilDecay);
+            double ogMu = mu + Program.Config.TrueSkillDeviations * (sigma - ogSigma);
 
-            double adjustmentFactor = newUpperBound - upperBound;
-            newMu = newMu - adjustmentFactor;
+            double newSigma = ogSigma * Gompertz(t);
+
+            double newMu = ogMu - Program.Config.TrueSkillDeviations * (newSigma - ogSigma);
 
             return (newMu, newSigma);
         }
 
-        private static double Gompertz(double value, int intensity) {
-            return (Math.Exp(-10 * Math.Exp(-0.6 * intensity)) * 17 / 18 + 1 - Math.Exp(-10)) * value;
+        private static double Gompertz(uint t) {
+            if (t == 0) return 1;
+            return Math.Exp(-10 * Math.Exp(-0.6 * t)) * 17 / 18 + 1;
         }
     }
 }

@@ -168,8 +168,15 @@ namespace OpenSkillBot
         public BotAction LatestAction { get => Matches.LatestAction; set => Matches.LatestAction = value; }
         // for O(1) lookup of matches :)
         public Dictionary<string, BotAction> MatchHash { get => Matches.MatchHash; set => Matches.MatchHash = value; }
-        public BotController() {
-            // get leaderboard
+        public BotController(bool initialize = true) {
+            if (initialize) Initialize();
+        }
+
+        bool initialized;
+        public void Initialize() {
+            if (initialized) return;
+
+                        // get leaderboard
             if (File.Exists(lbFileName)) {
                 CurLeaderboard = SerializeHelper.Deserialize<Leaderboard>(lbFileName);
                 CurLeaderboard.Initialize();
@@ -222,6 +229,8 @@ namespace OpenSkillBot
                 if (lbChangeQueued) UpdateLeaderboard();
             };
             lbTimer.Start();
+
+            initialized = true;
         }
 
         public async void UpdateLeaderboard() {
@@ -375,23 +384,28 @@ namespace OpenSkillBot
             }
 
             if (result != -1) {
-                if (LatestAction != null) {
-                    // note: this does recalculate
-                    await LatestAction.InsertAfter(action);
-                }
-                else {
-                    await action.DoAction();
-                }
-
-                LatestAction = action;
+                await AddAction(action);
             }
             else {
                 await action.UndeafenPlayers();
             }
 
+            return action;
+        }
+
+        public async Task AddAction(BotAction action) {
+            if (LatestAction != null) {
+                // note: this does recalculate
+                await LatestAction.InsertAfter(action);
+            }
+            else {
+                await action.DoAction();
+            }
+
+            LatestAction = action;
+
             SerializeActions();
 
-            return action;
         }
 
         public BotAction FindAction(string id) {
@@ -448,7 +462,7 @@ namespace OpenSkillBot
             var action = LatestAction;
             await action.Undo();
             LatestAction = action.PrevAction;
-            Program.Controller.SerializeActions();
+            SerializeActions();
             return action;
         }
     }

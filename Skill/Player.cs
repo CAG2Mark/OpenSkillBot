@@ -53,11 +53,18 @@ namespace OpenSkillBot.Skill
         /// <value></value>
         public string Alias { get; set; }
 
+
+        [JsonProperty]
         /// <summary>
         /// The player's Discord ID.
         /// </summary>
         /// <value></value>
-        public ulong DiscordId { get => discordId; set { discordId = value; discordUser = null; }}
+        public ulong DiscordId { 
+            get => discordId; 
+            private set { 
+                discordId = value; 
+            }
+        }
 
         /* 
         
@@ -79,6 +86,9 @@ namespace OpenSkillBot.Skill
         public PriorityQueue<TourneyContainer> Tournaments { get; set; } = new PriorityQueue<TourneyContainer>(true);
 
         public uint TournamentsMissed { get; set; } = 0;
+
+        public uint DecayCycle { get; set; } = 0;
+        public uint LastDecay { get; set; } = 0;
 
         private SocketGuildUser discordUser;
         [JsonIgnoreAttribute]
@@ -187,9 +197,12 @@ namespace OpenSkillBot.Skill
         public double DisplayedSkill => this.Mu - Program.Config.TrueSkillDeviations * Sigma;
 
         public static Rank GetRank(double mu, double sigma) {
-            return GetRank(mu - sigma * Program.Config.TrueSkillDeviations);
+            if (Program.Config.UnrankedEnabled && sigma >= Program.Config.UnrankedRDThreshold) return Rank.GetUnrankedRank();
+
+            return getRank(mu - sigma * Program.Config.TrueSkillDeviations);
         }
-        public static Rank GetRank(double skill) {
+        private static Rank getRank(double skill) {
+
             foreach (var rank in Program.Config.Ranks)
             {
                 // note: ranks are sorted in descending order
@@ -202,10 +215,23 @@ namespace OpenSkillBot.Skill
         }
 
         public void RefreshRank() {
-            this.PlayerRank = GetRank(DisplayedSkill);
+            this.PlayerRank = GetRank(this.Mu, this.Sigma);
         } 
 
+        public void LinkDiscord(ulong id) {
+            this.discordId = id;
+            this.discordUser = null;
+            Program.Controller.SerializeLeaderboard();
+        }
+
+        public void UnlinkDiscord() {
+            LinkDiscord(0);
+            Program.Controller.SerializeLeaderboard();
+        }
+
         public Rank PlayerRank { get; private set; } = null;
+
+        public bool IsUnranked => Program.Config.UnrankedEnabled && this.Sigma >= Program.Config.UnrankedRDThreshold;
 
         private bool refreshingRank;
 
@@ -240,7 +266,7 @@ namespace OpenSkillBot.Skill
                 }
 
                 try {
-                    if (oldRank != null && !hardRefresh)
+                    if (oldRank != null && oldRank.RoleId != 0&& !hardRefresh)
                         await Program.DiscordIO.RemoveRole(player, oldRank.RoleId);
                 }
                 catch (Exception ex) {
@@ -254,7 +280,7 @@ namespace OpenSkillBot.Skill
                 try {
                     // hard refresh
                     if (hardRefresh) {
-                        await Program.DiscordIO.RemoveRoles(player, Program.Config.Ranks.Select(o => o.RoleId));
+                        await Program.DiscordIO.RemoveRoles(player, Program.Config.Ranks.Select(o => o.RoleId).Where(o => o != 0));
                     }
                 }
                 catch (Exception ex) {
@@ -265,7 +291,7 @@ namespace OpenSkillBot.Skill
                     ));
                 }
                 try {
-                    if (this.PlayerRank != null)
+                    if (this.PlayerRank != null && PlayerRank.RoleId != 0)
                         await Program.DiscordIO.AddRole(player, PlayerRank.RoleId);
                 }
                 catch (Exception ex) {
@@ -276,6 +302,8 @@ namespace OpenSkillBot.Skill
                     ));
                 }
             }
+
+            Program.Controller.SerializeLeaderboard();
 
             Console.WriteLine("Refreshed the rank of " + IGN);
             refreshingRank = false;
@@ -306,6 +334,7 @@ namespace OpenSkillBot.Skill
             sb.Append($"**Name**: {this.IGN}{nl}");
             sb.Append($"**Alias**: {(string.IsNullOrWhiteSpace(this.Alias) ? "None" : this.Alias)}{nl}");
             sb.Append($"**Skill**: {r(this.DisplayedSkill)} RD {r(this.Sigma)}{nl}");
+            sb.Append($"**Rank**: {(PlayerRank == null ? "No rank" : PlayerRank.Name)}{nl}");
             sb.Append($"**Achievements**: {(Achievements.Count == 0 ? "No achievements." : string.Join(", ", Achievements))}{nl}");
             sb.Append($"**Matches:** {Actions.Where(a => a != null && a.Action.GetType() == typeof(MatchAction)).Count()}{nl}");
             sb.Append($"**Tournaments:** {Tournaments.Count() - 1}{nl}");

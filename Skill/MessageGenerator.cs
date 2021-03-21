@@ -19,8 +19,8 @@ namespace OpenSkillBot.Skill
                 var player = Program.CurLeaderboard.FindPlayer(old.UUId);
                 if (newMatch == null || player == null) return null;
 
-                var tsDelta = r(DisplayedSkill(newMatch) - DisplayedSkill(old));
-                var sigmaDelta = newMatch.Sigma - old.Sigma;
+                int tsDelta = r(DisplayedSkill(newMatch)) - r(DisplayedSkill(old));
+                int sigmaDelta = r(newMatch.Sigma) - r(old.Sigma);
 
                 string tsDelta_s = (tsDelta < 0 ? "" : "+") + r(tsDelta);
                 string sigmaDelta_s = (sigmaDelta < 0 ? "" : "+") + r(sigmaDelta);
@@ -55,7 +55,7 @@ namespace OpenSkillBot.Skill
                 var temp = winner.Players.FirstOrDefault(o => o.UUId == uuid);
                 var player = temp == null ? loser.Players.First(o => o.UUId == uuid) : temp;
 
-                var newRank = Player.GetRank(player.DisplayedSkill);
+                var newRank = Player.GetRank(player.Mu, player.Sigma);
 
                 int tsDelta = r(player.DisplayedSkill) - oldTs;
                 int rdDelta = (r(player.Sigma) - r(o.Sigma));

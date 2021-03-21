@@ -12,6 +12,12 @@ namespace OpenSkillBot.Skill
 {
     public abstract class BotAction : IComparable
     {
+
+        public BotAction() {
+            ActionTime = DateTime.UtcNow;
+            this.ActionId = Player.RandomString(20);
+        }
+        
         protected abstract Task action();
 
         protected abstract void undoAction();
@@ -46,9 +52,18 @@ namespace OpenSkillBot.Skill
 
         public virtual async Task DoAction(bool invokeChange = true)
         {
-            if (this.IsCancelled) return;
+            if (this.IsCancelled) {
+                Program.Controller.RemoveActionFromHash(this);
+                return;
+            }
+
+            Program.Controller.AddActionToHash(this);
+
             setOldPlayerDatas();
             await action();
+
+            await sendMessage();
+
             if (invokeChange) {
                 Program.CurLeaderboard.InvokeChange(getChangeCount());
             }
@@ -75,7 +90,7 @@ namespace OpenSkillBot.Skill
             undoAction();
 
             removeFromPlayerActions();
-            
+
             Program.Controller.RemoveActionFromHash(this);
 
             int depth = 0;
