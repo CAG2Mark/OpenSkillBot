@@ -15,6 +15,7 @@ Currently working features:
 * Undo functions
 * Player Discord linking
 * Player ranks
+* Skill decay (currently manually activated)
 * Match history channel
 * Skill change detection
 * Logging of internal errors and events
