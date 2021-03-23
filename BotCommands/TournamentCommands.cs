@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 namespace OpenSkillBot.BotCommands
 {
     [Name("Tournaments")]
+    [Summary("Manage tournaments and run tournament-specific commands.")]
     public class TournamentCommands : ModuleBase<SocketCommandContext> {
 
         [RequirePermittedRole]
@@ -47,9 +48,15 @@ namespace OpenSkillBot.BotCommands
             [Summary("The calendar date of the tournament in DD/MM/YYYY, DD/MM, or DD. The missing fields will be autofilled.")] string calendarDate = ""
         ) {
             var tourney = Tournament.GenerateTournament(tournamentName, utcTime, calendarDate, format);
-            var ct = await tourney.SetUpChallonge();
 
-            await Program.Controller.AddTournament(tourney);
+            var msgTask = Program.DiscordIO.SendMessage("", Context.Channel, EmbedHelper.GenerateInfoEmbed(":arrows_counterclockwise: Created tournament. Creating on challonge..."));
+            var msg = await msgTask;
+            
+            var ct = await tourney.SetUpChallonge();
+            var atTask = Program.Controller.AddTournament(tourney);
+            await atTask;
+
+            await msg.DeleteAsync();
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
                 $"Created the tournament **{tournamentName}**:" + Environment.NewLine + Environment.NewLine +
@@ -160,13 +167,18 @@ namespace OpenSkillBot.BotCommands
                 await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
         }
 
-        [SignupsChannelOnly]
+        // [SignupsChannelOnly]
         [Command("jointournament")]
         [Alias(new string[] {"jt"})]
         [Summary("Join a tournament.")]
         public async Task JoinTournamentCommand(
             [Summary("The a command separated list of tournaments to join, ie 1,2 to join tournaments 1 and 2.")] string tournaments = "1", 
             [Remainder][Summary("An optional tournament join message.")] string message = null) {
+                if (Context.Channel.Id != Program.Config.SignupsChannelId) {
+                    await ReplyAsync("This command can only be used in the signups channel.");
+                    return;
+                }
+
                 var player = Program.CurLeaderboard.Players.FirstOrDefault(p => p.DiscordId == Context.Message.Author.Id);
                 if (player == null) {
                     await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("You are not linked to the leaderboard. Please contact an administrator if you believe this is a mistake."));
@@ -258,7 +270,13 @@ namespace OpenSkillBot.BotCommands
 
             foreach (var team in StrListToTeams(players)) {
                 try {
-                    if ((await selectedTourney.AddTeam(team, true)).Item1)
+                    var addTask = selectedTourney.AddTeam(team, true);
+                    var editTask = Program.DiscordIO.EditMessage(msg, "", 
+                        EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding **{team.ToString()}** to the tournament **{selectedTourney.Name}**..."));
+
+                    await editTask;
+
+                    if ((await addTask).Item1)
                         playerNames.Append(team + Environment.NewLine);
                     else
                         await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"**{team}** is already in the bracket."));
@@ -269,9 +287,11 @@ namespace OpenSkillBot.BotCommands
                 }
             }
 
-            await selectedTourney.SendMessage();
+            var editTask2 = Program.DiscordIO.EditMessage(msg, "", 
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Rebuilding index..."));
 
-            await msg.DeleteAsync();
+            await Task.WhenAll(editTask2, selectedTourney.RebuildIndex());
+            await Task.WhenAll(selectedTourney.SendMessage(), msg.DeleteAsync());
 
             if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
                 await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(

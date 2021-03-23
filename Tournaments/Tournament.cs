@@ -273,13 +273,10 @@ namespace OpenSkillBot.Tournaments
                 cp.Name = t.ToString();
                 cp = await Program.Challonge.CreateParticipant((ulong)ChallongeId, cp);
                 t.ChallongeId = (ulong)cp.Id;
-
-                // rebuild for safety
-                await RebuildIndex();
             }
 
             if (!silent) {
-                await SendMessage();
+                await Task.WhenAll(RebuildIndex(), SendMessage());
             }
 
             // get signup log channel and send

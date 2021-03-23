@@ -9,6 +9,7 @@ namespace OpenSkillBot.BotCommands
 {
     [RequirePermittedRole]
     [Name("Player Management")]
+    [Summary("Add, edit and delete players.")]
     public class PlayerManagementCommands : ModuleBase<SocketCommandContext>
     {
         [Command("createplayer")]

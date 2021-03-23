@@ -10,7 +10,8 @@ using System.Text.RegularExpressions;
 
 namespace OpenSkillBot.BotCommands
 {
-    [Name("Skill")]
+    [Name("Matches")]
+    [Summary("Start, calculate and manage matches.")]
     public class SkillCommands : ModuleBase<SocketCommandContext> {
 
         [RequirePermittedRole]

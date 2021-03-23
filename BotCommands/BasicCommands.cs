@@ -12,19 +12,33 @@ using System.Collections;
 namespace OpenSkillBot.BotCommands
 {
     [Name("Basic Commands")]
+    [Summary("Commands providing basic interaction with the bot and set-up help.")]
     public class BasicCommands : ModuleBase<SocketCommandContext>
     {
+        public static string GetModuleQueryableName(ModuleInfo module) {
+            return module.Name.Split(" ")[0].ToLower();
+        }
         
         [Command("ping")]
         [Summary("Pings the bot.")]
-        public Task PingCommand() {
+        public async Task PingCommand() {
 
-            var timeSent = Context.Message.Timestamp;
-            var timeNow = DateTimeOffset.UtcNow;            
+            var timeAuthorSent = Context.Message.Timestamp;
+            var timeReceivedAuthor = DateTimeOffset.UtcNow;
 
-            var diff = Math.Abs((timeNow - timeSent).Milliseconds);
+            var msg = await Program.DiscordIO.SendMessage("", Context.Channel, EmbedHelper.GenerateInfoEmbed(":clock1: Ping received. Measuring latency..."));
 
-            return ReplyAsync("Ping received. Latency was " + diff + "ms");
+            var timeSent = msg.Timestamp;
+
+            var diff1 = Math.Max(0, (timeReceivedAuthor - timeAuthorSent).Milliseconds);
+            var diff2 = Math.Max(0, (timeSent - timeReceivedAuthor).Milliseconds);
+
+            await Task.WhenAll(
+                ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Gateway receive latency:  **{diff1}ms**" + Environment.NewLine +
+                    $"Gateway send latency: **{diff2}ms**" + Environment.NewLine +
+                    $"Total ping: **{diff1 + diff2}ms**", ":ping_pong: Pong!", null)),
+                msg.DeleteAsync()
+            );
         }
 
         // These two commands were implemented for fun and as an easter egg. They provide no functionality.
@@ -40,7 +54,7 @@ namespace OpenSkillBot.BotCommands
         [Command("betterbot")]
         [Summary("Gives the superior Discord bot. (Easter Egg)")]
         public Task BetterBotCommand(string a) {
-            return ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Open TrueSkill Bot is superior."));
+            return ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"OpenSkillBot is superior."));
         }
 
         [Command("decipher")]
@@ -202,6 +216,37 @@ namespace OpenSkillBot.BotCommands
             return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{roleName}** is no longer a permitted role."));
         }
 
+        public static string GenerateCommandUsage(CommandInfo cmd) {
+            char prefix = Program.prefix;
+            return $"{prefix}{cmd.Name} " +  
+                    $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[`" + p.Name + "` = " + p.DefaultValue + "]" : "<`" + p.Name + "`>"))}{Environment.NewLine}";
+        }
+
+        bool shouldDisplay(CommandInfo cmd) {
+            PreconditionResult result = cmd.CheckPreconditionsAsync(Context).Result;
+            return result.IsSuccess && (cmd.Summary == null | !cmd.Summary.Contains("(Easter Egg)"));
+        }
+
+        public Embed GenerateModuleEmbed(ModuleInfo module) {
+            var f = new EmbedBuilder();
+            f.Title = module.Name;
+            f.Description = module.Summary;
+            f.Color = Discord.Color.Blue;
+
+            bool displayedAny = false;
+            foreach (var cmd in module.Commands) {
+                if (shouldDisplay(cmd)) {
+                    displayedAny = true;
+                    f.AddField(GenerateCommandUsage(cmd) + " " + GenerateCommandAliases(cmd), cmd.Summary??"No description", true);
+                }
+            }
+
+            if (displayedAny)
+                return f.Build();
+            else
+                return EmbedHelper.GenerateErrorEmbed("You do not have permission to view the commands under this query.");
+        }
+
         [Command("help")]
         [Summary("Returns a list of all available commands.")]
         public Task HelpCommand() {
@@ -211,51 +256,106 @@ namespace OpenSkillBot.BotCommands
             var builder = new EmbedBuilder()
             {
                 Color = new Color(114, 137, 218),
+                Title = "Help Center"
             };
+
+            builder.Description = $"The command prefix is `{prefix}`." + Environment.NewLine + Environment.NewLine +
+                $"View specific help for a command or module using `{prefix}help <module or command>.`";
             
             foreach (var module in Program.DiscordIO.Commands.Modules)
             {
-                bool hasSentFirst = false;
+                var title = $"**{module.Name}** ({prefix}help {GetModuleQueryableName(module)})";
 
-                string name = "---" + module.Name.ToUpper() + "---";
+                bool displayedAny = false;
 
-                string description = "";
-                foreach (var cmd in module.Commands)
-                {
-
-                    PreconditionResult result = cmd.CheckPreconditionsAsync(Context).Result;
-                    if (result.IsSuccess && (cmd.Summary == null | !cmd.Summary.Contains("(Easter Egg)"))) {
-                        var append = $"**{prefix}{cmd.Name}**: _{cmd.Summary}_\n";
-                        if (append.Length + description.Length > 1024) {
-                            builder.AddField(x => {
-                                x.Name = name;
-                                x.Value = description;
-                                x.IsInline = false;
-                            });
-                            description = "";
-                            hasSentFirst = true;
-                        }
-                        description += append;
+                var sb = new StringBuilder();
+                foreach (var cmd in module.Commands) {
+                    if (shouldDisplay(cmd)) {
+                        displayedAny = true;
+                        sb.Append($"`{prefix}{cmd.Name}` ");
                     }
                 }
-                
-                if (!string.IsNullOrWhiteSpace(description))
-                {
-                    builder.AddField(x => {
-                        x.Name = hasSentFirst ? "..." : name;
-                        x.Value = description;
-                        x.IsInline = false;
-                    });
+
+                if (displayedAny) {
+                    builder.AddField(title, (module.Summary != null ? module.Summary + Environment.NewLine : "") +
+                        sb.ToString()
+                    );
                 }
             }
 
             return ReplyAsync("", false, builder.Build());
         }
 
+        [Command("help")]
+        [Summary("Searches for a module or command that match the query and returns information about it.")]
+        public async Task HelpCommand([Summary("The command to search for.")]string query, [Summary("Whehter or not to force search for a command.")] bool forceCmd = false)
+        {
+            query = query.ToLower();
+
+            // first search modules
+            var moduleResult = Program.DiscordIO.Commands.Modules.FirstOrDefault(m => query.Equals(GetModuleQueryableName(m)));
+            if (moduleResult != null && !forceCmd) {
+                await ReplyAsync("", false, GenerateModuleEmbed(moduleResult));
+                return;
+            }
+
+            // now search modules
+            var cmdResult = Program.DiscordIO.Commands.Search(Context, query);
+
+            if (!cmdResult.IsSuccess || cmdResult.Commands == null)
+            {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the command {(forceCmd ? "" : "or module ")}**{query}**."));
+                return;
+            }
+
+            var result_ = cmdResult.Commands.Where(c => c.Command.Summary == null || !c.Command.Summary.Contains("(Easter Egg)")).ToList();
+
+            string prefix = Program.prefix.ToString();
+            var builder = new EmbedBuilder()
+            {
+                Color = new Color(114, 137, 218),
+            };
+
+            sbyte displayedCnt = 0;
+
+            foreach (var match in result_)
+            {
+                var cmd = match.Command;
+
+                if (shouldDisplay(cmd)) {
+                    ++displayedCnt;
+                    builder.AddField(x =>
+                    {
+                        x.Name = GenerateCommandTitle(cmd);
+                        x.Value = GenerateHelpText(cmd);
+                        x.IsInline = false;
+                    });
+                }
+            }
+
+            if (displayedCnt != 0) {
+                await ReplyAsync("", false, builder.Build());
+            }
+            else {
+                builder.Description = $"Found **{result_.Count}** command{(result_.Count == 1 ? "" : "s")}:";
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("You do not have permission to view this command."));
+            }
+        }
+
+        [Command("helpcmd")]
+        [Summary("Searches for a command that match the query and returns information about it. (Is the same as `help <query> true`)")]
+        public async Task HelpCommand([Summary("The command to search for.")]string query)
+        {
+            await HelpCommand(query, true);
+        }
+
+        public static string GenerateCommandAliases(CommandInfo cmd) {
+            return (cmd.Aliases.Count == 1 ? "" : $"(Alias{(cmd.Aliases.Count == 2 ? "" : "es")}: !" + string.Join(", !", cmd.Aliases.Skip(1)) + ")");
+        }
+
         public static string GenerateCommandTitle(CommandInfo cmd) {
             string prefix = Program.prefix.ToString();
-            return "**" + prefix + cmd.Name + "** " + 
-            (cmd.Aliases.Count == 1 ? "" : $"(Alias{(cmd.Aliases.Count == 2 ? "" : "es")}: !" + string.Join(", !", cmd.Aliases.Skip(1)) + ")");
+            return "**" + prefix + cmd.Name + "** " + GenerateCommandAliases(cmd);
         }
 
         public static string GenerateHelpText(CommandInfo cmd) {
@@ -267,9 +367,7 @@ namespace OpenSkillBot.BotCommands
 
             // parameters
             if (cmd.Parameters.Count != 0) {
-                sb.Append($"Usage: {prefix}{cmd.Name} " +  
-                    $"{string.Join(" ", cmd.Parameters.Select(p => p.IsOptional ? "[`" + p.Name + "` = " + p.DefaultValue + "]" : "<`" + p.Name + "`>"))}{Environment.NewLine}"
-                    );
+                sb.Append($"Usage: { GenerateCommandUsage(cmd)}");
 
                 foreach (var p in cmd.Parameters) {
                     sb.Append($"`{p.Name}`: *{p.Summary}*{Environment.NewLine}");
@@ -300,43 +398,6 @@ namespace OpenSkillBot.BotCommands
             }
 
             return sb.ToString();
-        }
-
-        [Name("help")]
-        [Command("help")]
-        [Summary("Searches for commands that match the query and returns their usages.")]
-        public async Task HelpCommand([Summary("The command to search for.")]string query)
-        {
-            var result = Program.DiscordIO.Commands.Search(Context, query);
-
-            if (!result.IsSuccess || result.Commands == null)
-            {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the command **{query}**."));
-                return;
-            }
-
-            var result_ = result.Commands.Where(c => c.Command.Summary == null || !c.Command.Summary.Contains("(Easter Egg)")).ToList();
-
-            string prefix = Program.prefix.ToString();
-            var builder = new EmbedBuilder()
-            {
-                Color = new Color(114, 137, 218),
-                Description = $"Found **{result_.Count}** command{(result_.Count == 1 ? "" : "s")}:"
-            };
-
-            foreach (var match in result_)
-            {
-                var cmd = match.Command;
-
-                builder.AddField(x =>
-                {
-                    x.Name = GenerateCommandTitle(cmd);
-                    x.Value = GenerateHelpText(cmd);
-                    x.IsInline = false;
-                });
-            }
-
-            await ReplyAsync("", false, builder.Build());
         }
     }
 }

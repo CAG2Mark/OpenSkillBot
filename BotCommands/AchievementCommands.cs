@@ -12,6 +12,7 @@ namespace OpenSkillBot.BotCommands
 {
     [RequirePermittedRole]
     [Name("Achievements")]
+    [Summary("Create and manage achievements and grant them to players.")]
     public class AchievementCommands : ModuleBase<SocketCommandContext>
     {
         [Command("createachievement")]
