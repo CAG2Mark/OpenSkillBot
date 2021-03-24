@@ -142,8 +142,10 @@ namespace OpenSkillBot.Tournaments
         }
 
         public async Task RebuildIndex() {
-            await RebuildParticipants(true);
-            await RebuildMatches(true);
+            await Task.WhenAll(
+                RebuildParticipants(true),
+                RebuildMatches(true)
+            );
 
             await SendMessage();
             Program.Controller.SerializeTourneys();
@@ -255,6 +257,52 @@ namespace OpenSkillBot.Tournaments
             team.AddPlayer(p);
 
             return (await AddTeam(team, false, message)).Item1 ? 0 : 1;
+        }
+
+        public event EventHandler<MsgEventArgs> AddParticipantError;
+        public event EventHandler<MsgEventArgs> TeamAdded;
+        
+        /// <summary>
+        /// Adds teams to the tournament and whether they were added successfully.
+        /// </summary>
+        /// <param name="teams">The teams to add.</param>
+        /// <returns>True - Some or all teams were added succesfully.<br/>False - There was no fatal error but none of the teams were added.</returns>
+        public async Task<bool> AddTeams(IEnumerable<Team> teams, bool silent = false) {
+            if (this.IsActive || this.IsCompleted) 
+                throw new Exception("You cannot add teams to a tournament that is active or completed.");
+
+            // track duplicates
+            List<Team> added = new List<Team>();
+
+            List<ChallongeParticipant> participants = new List<ChallongeParticipant>();
+
+            foreach (var t in teams) {
+                
+                if (Teams.Contains(t) || added.Contains(t)) {
+                    AddParticipantError?.Invoke(this, new MsgEventArgs($"Could not add the team **{t}** as they are already in the tournament."));
+                }
+                else {
+                    participants.Add(new ChallongeParticipant() {
+                        Name = t.ToString(),
+                    });
+                    added.Add(t);
+
+                    TeamAdded?.Invoke(this, new MsgEventArgs(t.ToString()));
+                }
+            }
+
+            if (participants.Count == 0) return false;
+
+            await Program.Challonge.BulkAddParticipants((ulong)this.ChallongeId, participants);
+
+            Program.Controller.SerializeTourneys();
+
+            if (!silent) {
+                await Task.WhenAll(RebuildIndex(), SendMessage());
+            }
+
+            return true;
+            
         }
 
 

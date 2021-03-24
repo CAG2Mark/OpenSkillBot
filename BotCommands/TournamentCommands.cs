@@ -266,8 +266,30 @@ namespace OpenSkillBot.BotCommands
                 Context.Channel, 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding players to the tournament **{selectedTourney.Name}**..."));
 
+            
             var playerNames = new StringBuilder();
 
+            EventHandler<MsgEventArgs> recvError = async (o, e) => {
+                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+            };
+
+            EventHandler<MsgEventArgs> recvAdded = async (o, e) => {
+                playerNames.Append(e.Message + Environment.NewLine);
+                await Program.DiscordIO.EditMessage(msg, "", 
+                        EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding **{e.Message}** to the tournament **{selectedTourney.Name}**..."));
+            };
+
+            selectedTourney.AddParticipantError += recvError;
+            selectedTourney.TeamAdded += recvAdded;
+
+            var apTask = selectedTourney.AddTeams(StrListToTeams(players), true);
+
+            await apTask;
+
+            selectedTourney.AddParticipantError -= recvError;
+            selectedTourney.TeamAdded -= recvAdded;            
+
+            /*
             foreach (var team in StrListToTeams(players)) {
                 try {
                     var addTask = selectedTourney.AddTeam(team, true);
@@ -286,19 +308,20 @@ namespace OpenSkillBot.BotCommands
                     continue;
                 }
             }
+            */
 
             var editTask2 = Program.DiscordIO.EditMessage(msg, "", 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Rebuilding index..."));
 
             await Task.WhenAll(editTask2, selectedTourney.RebuildIndex());
-            await Task.WhenAll(selectedTourney.SendMessage(), msg.DeleteAsync());
-
-            if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+            var replyTask = !string.IsNullOrWhiteSpace(playerNames.ToString()) ?
+                    ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
                     $"Added the following players/teams to the tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
-                    playerNames.ToString()));
-            else
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+                    playerNames.ToString()))
+                    :
+                    ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+            
+            await Task.WhenAll(replyTask, selectedTourney.SendMessage(), msg.DeleteAsync());
         }
 
         [RequirePermittedRole]

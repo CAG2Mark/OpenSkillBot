@@ -96,6 +96,23 @@ namespace OpenSkillBot.ChallongeAPI {
 
             return des["participant"];
         }
+        
+        /// <summary>
+        /// Bylk adds participants to a given Challonge tournament.
+        /// </summary>
+        /// <param name="tournamentId">The ID of the tournament.</param>
+        /// <param name="participants">Predefined values of the participants.</param>
+        /// <returns>The participants' data as returned by Challonge.</returns>
+        public async Task<IEnumerable<ChallongeParticipant>> BulkAddParticipants(ulong tournamentId, IEnumerable<ChallongeParticipant> participants) {
+            var p = new Dictionary<string,object>();
+            p.Add("participants", participants);
+
+            var res = await httpPost($"tournaments/{tournamentId}/participants/bulk_add.json", p);
+            
+            var des = JsonConvert.DeserializeObject<List<Dictionary<string, ChallongeParticipant>>>(res);
+
+            return des.Select(d => d["participant"]);
+        }
 
         /// <summary>
         /// Deletes a participant from a given tournament.
