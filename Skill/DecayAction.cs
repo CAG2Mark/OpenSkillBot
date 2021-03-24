@@ -128,9 +128,12 @@ namespace OpenSkillBot.Skill
                 .WithCurrentTimestamp()
                 .WithFooter("ID: " + this.ActionId);
 
-            eb.AddField("Decays", MessageGenerator.MatchDeltaGenerator(
-                this.OldPlayerDatas, this.GetPlayerDatas()
-            ));
+            var text = MessageGenerator.MatchDeltaGenerator(
+                this.OldPlayerDatas, this.GetPlayerDatas());
+
+            eb.AddField("Decays", text.SkillChanges);
+
+            if (!string.IsNullOrEmpty(text.RankChanges)) eb.AddField("Rank Changes", text.RankChanges);
 
             return eb.Build();
         }
@@ -142,6 +145,11 @@ namespace OpenSkillBot.Skill
                     player.DecayCycle % Program.Config.DecayCyclesUntilDecay == 0 &&
                     player.DisplayedSkill > Program.Config.DecayThreshold) yield return player;
             }
+        }
+
+        public override string ToString()
+        {
+            return $"Decay {this.DecayedPlayers.Count()} player(s)";
         }
     }
 }

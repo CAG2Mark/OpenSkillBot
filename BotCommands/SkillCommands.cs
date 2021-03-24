@@ -91,13 +91,13 @@ namespace OpenSkillBot.BotCommands
                     .WithTitle($":crossed_swords: **{t1_s}** vs **{t2_s}**:");
 
                 embed.AddField($"If **{t1_s}** wins:", 
-                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(team1Win)));
+                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(team1Win)).SkillChanges);
 
                 embed.AddField($"If **{t2_s}** wins:", 
-                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(team2Win)));
+                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(team2Win)).SkillChanges);
 
                 embed.AddField($"If **{t1_s}** and **{t2_s}** draw:", 
-                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(draw)));
+                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(draw)).SkillChanges);
 
                 await ReplyAsync("", false, embed.Build());
             }
@@ -199,9 +199,9 @@ namespace OpenSkillBot.BotCommands
 
         [RequirePermittedRole]
         [Command("insertmatch")]
-        [Summary("Inserts a match **before** a specified match and recalculates the following matches.")]
-        public async Task InsertMatchCommand([Summary("The match that will follow the match to be inserted.")] string id, [Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
-            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
+        [Summary("Inserts a match **before** a specified match/action and recalculates the following matches.")]
+        public async Task InsertMatchCommand([Summary("The match/action that will follow the match to be inserted.")] string id, [Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
+            [Summary("The result of the match to insert. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
 
             // this code is to find the match to insert before
 
@@ -461,7 +461,7 @@ namespace OpenSkillBot.BotCommands
         [Summary("Undos a given number of matches.")]
         public async Task UndoCommand([Summary("The number of matches to undo (default is 1).")] int count = 1) {
             if (count == 0) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Couldn't undo any matches because you didn't tell me to undo any, nerd. :sunglasses:"));
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Couldn't undo any matches/actions because you didn't tell me to undo any, nerd. :sunglasses:"));
                 return;
             }
 
@@ -470,20 +470,26 @@ namespace OpenSkillBot.BotCommands
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Initialising..."));
 
             StringBuilder sb = new StringBuilder();
-            sb.Append($"**The following {(count == 1 ? "match was" : "matches were")} undone:**{Environment.NewLine}{Environment.NewLine}");
+            sb.Append($"**The following {(count == 1 ? "match/action was" : "matches/actions were")} undone:**{Environment.NewLine}{Environment.NewLine}");
             for (int i = 0; i < count; ++i) {
 
-                await Program.DiscordIO.EditMessage(msg, "",
-                    EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Undoing match {i + 1} of {count}..."));
+                var editAction = Program.DiscordIO.EditMessage(msg, "",
+                    EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Undoing match/action {i + 1} of {count}..."));
 
-                var match = await Program.Controller.UndoAction();
+                var undoAction = Program.Controller.UndoAction();
+
+                var match = await undoAction;
+                await editAction;
+
                 if (match == null) break;
 
                 sb.Append($"**{match.ToString()}**{Environment.NewLine}");
             }
 
-            await msg.DeleteAsync();
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
+            await Task.WhenAll(
+                msg.DeleteAsync(),
+                ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()))
+            );
             
             // reset the pointer if the currently focused match has been affected
             if (count >= p_depth) await PtrResetCommand();
@@ -491,8 +497,8 @@ namespace OpenSkillBot.BotCommands
 
         [RequirePermittedRole]
         [Command("undo")]
-        [Summary("Undos a specific match.")]
-        public async Task UndoCommand([Summary("The ID of the match.")] string id) {
+        [Summary("Undos a specific match or action.")]
+        public async Task UndoCommand([Summary("The ID of the match or action.")] string id) {
 
             // special case
             if (Program.Controller.LatestAction.ActionId.Equals(id)) {
@@ -503,23 +509,23 @@ namespace OpenSkillBot.BotCommands
             var match = FindMatch(id);
 
             if (match == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match or action with the ID **{id}**."
                     ));
                 return;
             }
 
             var msg = await Program.DiscordIO.SendMessage("", 
                 Context.Channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Undoing match and re-calculating subsequent matches... (this might take a while)"));
+                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Undoing action and re-calculating subsequent matches/actions... (this might take a while)"));
 
             int depth = await match.Undo();
 
             StringBuilder sb = new StringBuilder();
-            sb.Append($"**The following match was undone:**{Environment.NewLine}{Environment.NewLine}");
+            sb.Append($"**The following match/action was undone:**{Environment.NewLine}{Environment.NewLine}");
 
             sb.Append($"**{match.ToString()}**{Environment.NewLine}{Environment.NewLine}");
 
-            sb.Append($"**{depth}** subsequent match{(depth == 1 ? " was" : "es were")} re-calculated.");
+            sb.Append($"**{depth}** subsequent action{(depth == 1 ? " was" : "s were")} re-calculated.");
             
             await msg.DeleteAsync();
 
@@ -544,12 +550,12 @@ namespace OpenSkillBot.BotCommands
                 p_depth = 1;
             }
             if (p_match == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no matches."));
+                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no actions/matches."));
                 return;
             }
 
             await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
-                "**The pointer is currently on the match:**" + Environment.NewLine + Environment.NewLine +
+                "**The pointer is currently on the match/action:**" + Environment.NewLine + Environment.NewLine +
                 $"**{p_match.ToString()}**", "ID: " + p_match.ActionId));
         }
 
@@ -558,17 +564,17 @@ namespace OpenSkillBot.BotCommands
 
         [RequirePermittedRole]
         [Command("ptrreset")]
-        [Summary("Resets the pointer to the latest match.")]
+        [Summary("Resets the pointer to the latest match/action.")]
         public async Task PtrResetCommand() {
             p_match = Program.Controller.LatestAction;
             p_depth = 1;
             await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
-                "**The pointer has been reset to the latest match.**"));
+                "**The pointer has been reset to the latest match/action.**"));
         }
 
         [RequirePermittedRole]
         [Command("viewptr")]
-        [Summary("Outputs the match currently focused on by the pointer.")]
+        [Summary("Outputs the match/action currently focused on by the pointer.")]
         public async Task ViewPtrCommand() {
             await viewPtrPos();
         }
@@ -577,11 +583,11 @@ namespace OpenSkillBot.BotCommands
         [Command("ptrmv")]
         [Summary("Moves the pointer by a specified amount.")]
         public async Task PtrMoveCommand(
-            [Summary("The amount of matches to move the pointer by. +ve values move it closer to the latest match.")] int delta
+            [Summary("The amount of actions to move the pointer by. +ve values move it closer to the latest action.")] int delta
         ) {
             if (p_match == null) p_match = Program.Controller.LatestAction;
             if (p_match == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no matches."));
+                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no actions/matches."));
                 return;
             }
             

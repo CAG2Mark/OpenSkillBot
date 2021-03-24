@@ -275,8 +275,12 @@ namespace OpenSkillBot.BotCommands
 
             EventHandler<MsgEventArgs> recvAdded = async (o, e) => {
                 playerNames.Append(e.Message + Environment.NewLine);
-                await Program.DiscordIO.EditMessage(msg, "", 
+
+                try {
+                    await Program.DiscordIO.EditMessage(msg, "", 
                         EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding **{e.Message}** to the tournament **{selectedTourney.Name}**..."));
+                }
+                catch (Exception) {}
             };
 
             selectedTourney.AddParticipantError += recvError;
@@ -419,7 +423,7 @@ namespace OpenSkillBot.BotCommands
 
             // rebuild
             try {
-                await selectedTourney.RebuildIndex();
+                await selectedTourney.RebuildIndex(fullRepopulate:true);
             } catch (Exception e) {
                 await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Aborted rebuilding the index because of the following error:"
                 + Environment.NewLine + Environment.NewLine + e.Message));

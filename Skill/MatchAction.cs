@@ -90,6 +90,14 @@ namespace OpenSkillBot.Skill {
         protected override async Task action()
         {
             SkillWrapper.CalculateMatch(this.Winner.Players, this.Loser.Players, this.IsDraw);
+            foreach (var p in Winner.Players) {
+                p.LastDecay = 0;
+                p.DecayCycle = 0;
+            }
+            foreach (var p in Loser.Players) {
+                p.LastDecay = 0;
+                p.DecayCycle = 0;
+            }
             // undeafen the users
             await UndeafenPlayers();
         }

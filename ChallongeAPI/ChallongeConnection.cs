@@ -210,6 +210,15 @@ namespace OpenSkillBot.ChallongeAPI {
         }
 
         /// <summary>
+        /// Clears a Challonge tournament's participants.
+        /// </summary>
+        /// <param name="tournamentId">The tournament's ID.</param>
+        /// <returns></returns>
+        public async Task ClearParticipants(ulong tournamentId) {
+            await httpDelete($"tournaments/{tournamentId}/participants/clear.json");
+        }
+
+        /// <summary>
         /// Starts a given tournament on Challonge.
         /// </summary>
         /// <param name="tournamentId">The ID of the tournament to start.</param>
@@ -282,7 +291,7 @@ namespace OpenSkillBot.ChallongeAPI {
             var resp = await client.PostAsync(url + endpoint, strContent);
 
             // ensure success
-            resp.EnsureSuccessStatusCode();
+            // resp.EnsureSuccessStatusCode();
 
             var content = await resp.Content.ReadAsStringAsync();
 

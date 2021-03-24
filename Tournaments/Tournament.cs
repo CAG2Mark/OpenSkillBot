@@ -141,25 +141,25 @@ namespace OpenSkillBot.Tournaments
             return ct;
         }
 
-        public async Task RebuildIndex() {
-            await Task.WhenAll(
-                RebuildParticipants(true),
-                RebuildMatches(true)
-            );
+        public async Task RebuildIndex(bool fullRepopulate = false) {
+
+            await RebuildParticipants(silent: true, fullRepopulate: fullRepopulate);
+            await RebuildMatches(true);
 
             await SendMessage();
             Program.Controller.SerializeTourneys();
         }
 
-        public async Task<List<ChallongeParticipant>> RebuildParticipants(bool silent = false, bool order = false) {
+        public async Task<List<ChallongeParticipant>> RebuildParticipants(bool silent = false, bool order = false, bool fullRepopulate = false) {
             if (!IsChallongeLinked) return null;
             var participants = await Program.Challonge.GetParticipants((ulong)this.ChallongeId);
             // don't replace the actual value until it the integrity of the participants list is verified
             List<Team> newList = new List<Team>();
             foreach (var p in participants) {
-                Team t = SkillCommands.StrToTeam(p.Name);
-                t.ChallongeId = (ulong)p.Id;
+                Team t = ChallongePartToTeam(p);
+
                 if (p.FinalRank != null) t.Ranking = (uint)p.FinalRank;
+
                 newList.Add(t);
             }
             this.Teams = newList;
@@ -171,6 +171,11 @@ namespace OpenSkillBot.Tournaments
             if (!silent) {
                 await SendMessage();
                 Program.Controller.SerializeTourneys();
+            }
+
+            if (fullRepopulate && !this.IsActive) {
+                await Program.Challonge.ClearParticipants((ulong)this.ChallongeId);
+                await AddTeams(this.Teams, verbose:false, force:true);
             }
 
             return participants;
@@ -190,9 +195,6 @@ namespace OpenSkillBot.Tournaments
         }
 
         public async Task Start(bool isActive) {
-            IsActive = isActive;
-
-
             if (isActive) {
                 // store old player data
 
@@ -206,9 +208,11 @@ namespace OpenSkillBot.Tournaments
 
                 // update challonge
                 if (IsChallongeLinked) {
+                    await RebuildIndex(fullRepopulate:true);
                     await Program.Challonge.StartTournament((ulong)this.ChallongeId);
-                    await RebuildIndex();
                 }
+
+                IsActive = isActive;
             }
 
             await SendMessage();
@@ -267,7 +271,7 @@ namespace OpenSkillBot.Tournaments
         /// </summary>
         /// <param name="teams">The teams to add.</param>
         /// <returns>True - Some or all teams were added succesfully.<br/>False - There was no fatal error but none of the teams were added.</returns>
-        public async Task<bool> AddTeams(IEnumerable<Team> teams, bool silent = false) {
+        public async Task<bool> AddTeams(IEnumerable<Team> teams, bool silent = false, bool verbose = true, bool force = false) {
             if (this.IsActive || this.IsCompleted) 
                 throw new Exception("You cannot add teams to a tournament that is active or completed.");
 
@@ -278,16 +282,16 @@ namespace OpenSkillBot.Tournaments
 
             foreach (var t in teams) {
                 
-                if (Teams.Contains(t) || added.Contains(t)) {
-                    AddParticipantError?.Invoke(this, new MsgEventArgs($"Could not add the team **{t}** as they are already in the tournament."));
+                if ((Teams.Contains(t) || added.Contains(t)) && !force) {
+                    if (verbose)
+                        AddParticipantError?.Invoke(this, new MsgEventArgs($"Could not add the team **{t}** as they are already in the tournament."));
                 }
                 else {
-                    participants.Add(new ChallongeParticipant() {
-                        Name = t.ToString(),
-                    });
+                    participants.Add(TeamToChallongePart(t));
                     added.Add(t);
 
-                    TeamAdded?.Invoke(this, new MsgEventArgs(t.ToString()));
+                    if (verbose)
+                        TeamAdded?.Invoke(this, new MsgEventArgs(t.ToString()));
                 }
             }
 
@@ -317,9 +321,7 @@ namespace OpenSkillBot.Tournaments
             ChallongeParticipant cp = null;
             
             if (IsChallongeLinked) {
-                cp = new ChallongeParticipant();
-                cp.Name = t.ToString();
-                cp = await Program.Challonge.CreateParticipant((ulong)ChallongeId, cp);
+                cp = await Program.Challonge.CreateParticipant((ulong)ChallongeId, TeamToChallongePart(t));
                 t.ChallongeId = (ulong)cp.Id;
             }
 
@@ -764,6 +766,32 @@ namespace OpenSkillBot.Tournaments
         public int CompareTo(object obj)
         {
             return EndTime.CompareTo(((Tournament)obj).EndTime);
+        }
+
+        const string OSB_SUFFIX = "OSB_CHALLONGE_MISC";
+        public static Team ChallongePartToTeam(ChallongeParticipant p) {
+            Team team;
+
+            if (!string.IsNullOrEmpty(p.Misc) && p.Misc.EndsWith(OSB_SUFFIX)) {
+                var uuids = p.Misc.Substring(0, p.Misc.Length - OSB_SUFFIX.Length);
+                var spl = uuids.Split(',');
+                team = MatchAction.UUIDListToTeam(spl);
+            }
+            else {
+                team = SkillCommands.StrToTeam(p.Name);
+            }
+
+            team.ChallongeId = (ulong)p.Id;
+
+            return team;
+        }
+
+        public static ChallongeParticipant TeamToChallongePart(Team t) {
+            var cp = new ChallongeParticipant();
+            cp.Name = t.ToString();
+            cp.Misc = string.Join(',', t.Players.Select(p => p.UUId)) + OSB_SUFFIX;
+
+            return cp;
         }
     }
 }
