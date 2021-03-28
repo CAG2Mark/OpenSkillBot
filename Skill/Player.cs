@@ -53,6 +53,12 @@ namespace OpenSkillBot.Skill
         /// <value></value>
         public string Alias { get; set; }
 
+        /// <summary>
+        /// Whether or not this player is marked for deletion and therefore cannot be added to tournaments or matches.
+        /// </summary>
+        /// <value></value>
+        public bool MarkedForDeletion { get; set; } = false;
+
 
         [JsonProperty]
         /// <summary>
@@ -339,7 +345,7 @@ namespace OpenSkillBot.Skill
             sb.Append($"**Matches:** {Actions.Where(a => a != null && a.Action.GetType() == typeof(MatchAction)).Count()}{nl}");
             sb.Append($"**Tournaments:** {Tournaments.Count() - 1}{nl}");
             var user = this.DiscordId == 0 ? null : DiscordUser;
-            sb.Append($"**Discord Link**: {(user == null ? "None" : $"Linked as {user.Username}#{user.DiscriminatorValue} with ID {this.DiscordId}")}{nl}");
+            sb.Append($"**Discord Link**: {(user == null ? "None" : $"Linked as {user.Mention}")}{nl}");
             sb.Append($"**Bot ID:** {this.UUId}");
 
             return sb.ToString();

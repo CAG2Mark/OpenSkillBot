@@ -264,7 +264,7 @@ namespace OpenSkillBot.BotCommands
             
             foreach (var module in Program.DiscordIO.Commands.Modules)
             {
-                var title = $"**{module.Name}** ({prefix}help {GetModuleQueryableName(module)})";
+                var title = $"**{module.Name}** (`{prefix}help {GetModuleQueryableName(module)}`)";
 
                 bool displayedAny = false;
 

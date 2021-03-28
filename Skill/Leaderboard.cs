@@ -18,6 +18,8 @@ namespace OpenSkillBot.Skill
         // sorted by TS instead of ID, only use for output - don't binary search
         private List<Player> players_byTs = new List<Player>();
 
+        public Nullable<(string Name, ulong DiscordID)> LatestJoinedPlayer { get; set; } = null;
+
         public Leaderboard() {
 
         }
@@ -161,7 +163,14 @@ namespace OpenSkillBot.Skill
         }
 
         public async Task Reset() {
-            foreach (var player in Players) {
+            var players = Players;
+
+            Players = new List<Player>();
+            players_byTs = new List<Player>();
+
+            foreach (var player in players) {
+                if (player.MarkedForDeletion) continue;
+
                 player.Mu = Program.Config.DefaultMu;
                 player.Sigma = Program.Config.DefaultSigma;
                 player.TournamentsMissed = 0;
@@ -169,6 +178,9 @@ namespace OpenSkillBot.Skill
                 player.LastDecay = 0;
                 player.Tournaments = new PriorityQueue<Serialization.TourneyContainer>(true);
                 player.Actions = new PriorityQueue<Serialization.ActionContainer>(true);
+
+                Players.Add(player);
+                players_byTs.Add(player);
 
                 await Task.Delay(200);
             }
@@ -183,17 +195,18 @@ namespace OpenSkillBot.Skill
         public Player FuzzySearch(string query) {
             if (string.IsNullOrWhiteSpace(query) || query.Length < 3) return null;
 
-            query = query.ToLower();
+            var nQuery = query.ToLower();
+            // first search based on ign, discord ID or UUID
             var player = Players.Find(p => {
                 string name = p.IGN.Substring(0, Math.Min(query.Length, p.IGN.Length)).ToLower();
-                return query.Equals(name);
+                return (nQuery.Equals(name) || query.Equals(p.DiscordId.ToString()) || query.Equals(p.UUId.ToString())) && !p.MarkedForDeletion;
             });
             if (player != null) return player;
             else return Players.Find(p => {
                 string alias = null;
                 if (!string.IsNullOrWhiteSpace(p.Alias))
                     alias = p.Alias.Substring(0, Math.Min(query.Length, p.Alias.Length)).ToLower(); 
-                return query.Equals(alias);
+                return nQuery.Equals(alias) && !p.MarkedForDeletion; // do not return players marked for deletion
             });
         }
 
@@ -212,6 +225,9 @@ namespace OpenSkillBot.Skill
             for (int j = 0; j < copy.Count; ++j) {
 
                 var player = copy[j];
+
+                // do not display players marked for deletion on the leaderboard
+                if (player.MarkedForDeletion) continue;
 
                 inUnrankedRegion = j >= ogCnt;
 

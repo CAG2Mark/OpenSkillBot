@@ -10,6 +10,7 @@ using Discord.Rest;
 using System.Collections.Generic;
 using Discord.Net;
 using Discord.Net.Rest;
+using OpenSkillBot.BotCommands;
 
 // Most of the code here is copied from the Discord.NET documentation.
 
@@ -42,7 +43,8 @@ namespace OpenSkillBot.BotInputs
             // Subscribe the logging handler to both the client and the CommandService.
             client.Log += Log;
             Commands.Log += Log;
-        
+
+
             // Source: https://github.com/Aux/Discord.Net-Example
 
             // Create a new instance of a service collection
@@ -56,6 +58,8 @@ namespace OpenSkillBot.BotInputs
 
             LoginToDiscord(token);
 
+            // do not call any further commands from the client here
+
             client.Ready += async () => {           
                 this.IsReady = true;
                 await Log(new LogMessage(LogSeverity.Info, "Program",
@@ -66,8 +70,26 @@ namespace OpenSkillBot.BotInputs
                 }
             };
 
-            client.UserJoined += (user) => {
-                return client.DownloadUsersAsync(client.Guilds);
+            client.UserJoined += async (user) => {
+                Program.CurLeaderboard.LatestJoinedPlayer = (user.Username, user.Id);
+                Program.Controller.SerializeLeaderboard();
+
+                // send message to help managers auto add players
+                var commandsChnl = Program.Config.GetCommandChannel();
+                if (commandsChnl != null) {
+                    var embed = new EmbedBuilder()
+                        .WithThumbnailUrl(user.GetAvatarUrl())
+                        .WithColor(Discord.Color.Blue)
+                        .WithTitle("New user: " + user.Username + "#" + user.DiscriminatorValue)
+                        .WithFooter("ID: " + user.Id);
+
+                    var nl = Environment.NewLine;
+                    embed.Description = $"Auto-add {user.Mention} to the leaderboard using: {nl}{nl} `!autocp [name]`";
+
+                    await SendMessage("", commandsChnl, embed.Build());
+                }
+
+                await client.DownloadUsersAsync(client.Guilds);
             };
         }
 

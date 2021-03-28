@@ -28,7 +28,7 @@ namespace OpenSkillBot.BotCommands
             Program.Controller.CurLeaderboard.AddPlayer(np);
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
-                $"Added player **{name}** with skill {np.DisplayedSkill} RD {np.Sigma}.")
+                $"Added player **{name}** with skill {np.DisplayedSkill} RD {np.Sigma}.", "Player ID: " + np.UUId)
                 );
         }
         
@@ -58,11 +58,28 @@ namespace OpenSkillBot.BotCommands
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
                 $"Added player **{name}** with skill {np.DisplayedSkill} RD {np.Sigma}," 
-                + $" and linked them to the Discord User **{user.Username}#{user.DiscriminatorValue}**.")
+                + $" and linked them to the Discord User {user.Mention}.", "Player ID: " + np.UUId)
                 );
         }
 
-        private Player createPlayer(string name, double skill, double rd) {
+        [Command("autocreateplayer")]
+        [Alias(new string[] {"autocp"})]
+        [Summary("Creates a new player with the default settings and links it to the last joined member in the server.")]
+        public async Task AutoCreatePlayer(
+            [Remainder][Summary("The player's name. Leave empty to set to their Discord username.")] string name = null
+        ) {
+
+            if (Program.CurLeaderboard.LatestJoinedPlayer == null) {
+                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Could not identify the latest player who has joined."));
+                return;
+            }
+
+            (string Name, ulong DiscordID) p = ((string Name, ulong DiscordID))Program.CurLeaderboard.LatestJoinedPlayer;
+
+            await CreateLinkedPlayerCommand(string.IsNullOrWhiteSpace(name) ? p.Name : name, p.DiscordID);
+        }
+
+        private Player createPlayer(string name, double skill = double.NaN, double rd = double.NaN) {
             if (double.IsNaN(rd)) rd = Program.Config.DefaultSigma;
             if (double.IsNaN(skill)) skill = Program.Config.DefaultMu;
             else skill += Program.Config.TrueSkillDeviations * rd;
@@ -162,12 +179,17 @@ namespace OpenSkillBot.BotCommands
 
             var embed = new EmbedBuilder().WithTitle(player.IGN).WithColor(Discord.Color.Green);
             embed.AddField("Info", player.GenerateSummary());
+            if (player.DiscordUser != null) {
+                embed.ThumbnailUrl = player.DiscordUser.GetAvatarUrl();
+            }
+
             await ReplyAsync("", false, embed.Build());
         }
 
 
         [Command("deleteplayer")]
-        [Summary("Deletes a player from the leaderboard.")]
+        [Summary("Deletes a player from the leaderboard. **Note that this player will only be truly deleted after a leaderboard reset," + 
+            "as their stats are still needed to re-calculate past matches! Until then, they are marked for deletion and hidden from the leaderboard.**")]
         public async Task DeletePlayer([Summary("The player's name, ID, or Discord ID.")] string name) {
             var player = FindPlayer(name);
             if (player == null) {
@@ -175,22 +197,15 @@ namespace OpenSkillBot.BotCommands
                 return;
             }
 
-            Program.CurLeaderboard.RemovePlayer(player);
+            player.MarkedForDeletion = true;
+
+            Program.CurLeaderboard.InvokeChange();
 
             await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** has been removed from the leaderboard."));
         }
 
         public static Player FindPlayer(string name) {
-            ulong id;
-            var player = Program.CurLeaderboard.FuzzySearch(name);
-            if (player == null) {
-                player = Program.CurLeaderboard.Players.FirstOrDefault(p => p.UUId.Equals(name.Trim()));
-            }
-            if (player == null && UInt64.TryParse(name, out id)) {
-                player = Program.CurLeaderboard.Players.FirstOrDefault(p => p.DiscordId == id);
-            }
-            return player;
+            return Program.CurLeaderboard.FuzzySearch(name);
         }
-
     }
 }

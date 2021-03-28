@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Discord.WebSocket;
+using Newtonsoft.Json;
 
 namespace OpenSkillBot.Skill
 {
@@ -110,6 +111,7 @@ namespace OpenSkillBot.Skill
 
         #region Discord related
 
+        [JsonProperty("botToken")]
         public string BotToken
         {
             get => botToken; set => Set(ref botToken, value);
