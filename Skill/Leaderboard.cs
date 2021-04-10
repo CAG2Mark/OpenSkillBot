@@ -75,6 +75,10 @@ namespace OpenSkillBot.Skill
             Players.Sort((x, y) => x.UUId.CompareTo(x.UUId));
             players_byTs.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
         }
+
+        public Player FindPlayer(ulong discordId) {
+            return Players.FirstOrDefault(p => p.DiscordId == discordId);
+        }
         
         public Player FindPlayer(string uuid, bool retry = true) {
 

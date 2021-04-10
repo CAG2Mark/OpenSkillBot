@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using OpenSkillBot.Achievements;
 using OpenSkillBot.Tournaments;
 using OpenSkillBot.Serialization;
+using Discord;
 
 namespace OpenSkillBot.Skill
 {
@@ -333,7 +334,31 @@ namespace OpenSkillBot.Skill
 
             initRankRefresh();
         }
- 
+
+        public Embed GenerateEmbed() {
+            var eb = new EmbedBuilder()
+                .WithColor(Discord.Color.Blue)
+                .WithTitle(this.IGN);
+
+            if (this.DiscordUser != null) {
+                eb.ThumbnailUrl = this.DiscordUser.GetAvatarUrl();
+            }
+            
+            eb.AddField("Skill", Math.Round(this.DisplayedSkill, 0) + " RD " + Math.Round(this.Sigma, 0), true);
+            eb.AddField("Matches played", Actions.Where(a => a != null && a.Action.GetType() == typeof(MatchAction)).Count(), true);
+            eb.AddField("Tournaments played", this.Tournaments.Count - 1, true);
+            eb.AddField("Achievements", nIfEmpty(string.Join(", ", this.Achievements.Select(a => a.Name))), true);
+
+            if (this.DiscordUser != null) {
+                eb.AddField("Discord", this.DiscordUser.Mention, true);
+            }
+
+            return eb.Build();
+        }
+
+        static string nIfEmpty(string text) {
+            return string.IsNullOrWhiteSpace(text) ? "None" : text;
+        }
         public string GenerateSummary() {
             StringBuilder sb = new StringBuilder();
             var nl = Environment.NewLine;

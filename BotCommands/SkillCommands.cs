@@ -58,61 +58,14 @@ namespace OpenSkillBot.BotCommands
             }
         }
 
-        [Command("calculate")]
-        [Alias(new string[] { "calc"})]
-        [Summary("Returns the value of the hypothetical result of a full match between two teams.")]
-        public async Task CalculateCommand([Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
-            [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw. Enter -1 to cancel the match.")] int result = 1
-        ) {
-            try {
-                Team t1;
-                Team t2;
-                try {
-                    t1 = StrToTeam(team1);
-                    t2 = StrToTeam(team2);
-                }
-                catch (Exception e) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
-                    return;
-                }
-
-                var oldData = toOldPlayerData(new Team[] {t1, t2});
-
-                var t1_s = t1.ToString();
-                var t2_s = t2.ToString();
-
-                var team1Win = SkillWrapper.GetMatchResult(t1.Players, t2.Players);
-                var team2Win = SkillWrapper.GetMatchResult(t2.Players, t1.Players);
-                var draw = SkillWrapper.GetMatchResult(t1.Players, t2.Players, true);
-
-                var embed = new EmbedBuilder()
-                    .WithColor(Discord.Color.Blue)
-                    .WithTimestamp(DateTime.UtcNow)
-                    .WithTitle($":crossed_swords: **{t1_s}** vs **{t2_s}**:");
-
-                embed.AddField($"If **{t1_s}** wins:", 
-                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(team1Win)).SkillChanges);
-
-                embed.AddField($"If **{t2_s}** wins:", 
-                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(team2Win)).SkillChanges);
-
-                embed.AddField($"If **{t1_s}** and **{t2_s}** draw:", 
-                    MessageGenerator.MatchDeltaGenerator(oldData, toOldPlayerData(draw)).SkillChanges);
-
-                await ReplyAsync("", false, embed.Build());
-            }
-            catch (Exception e) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
-            }
-        }
-
-        private static IEnumerable<OldPlayerData> toOldPlayerData(IDictionary<Player, (double Mu, double Sigma)> data) {
+        
+        public static IEnumerable<OldPlayerData> ToOldPlayerData(IDictionary<Player, (double Mu, double Sigma)> data) {
             foreach (var k in data.Keys) {
                 yield return new OldPlayerData() { UUId = k.UUId, Mu = data[k].Mu, Sigma = data[k].Sigma};
             }
         }
 
-        private static IEnumerable<OldPlayerData> toOldPlayerData(IEnumerable<Team> teams) {
+        public static IEnumerable<OldPlayerData> ToOldPlayerData(IEnumerable<Team> teams) {
             foreach (var t in teams) {
                 foreach (var p in t.Players) {
                     yield return new OldPlayerData() { UUId = p.UUId, Mu = p.Mu, Sigma = p.Sigma };

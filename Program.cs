@@ -77,7 +77,7 @@ namespace OpenSkillBot
             var chTime = DateTime.UtcNow;
             // Test connection with a basic api call
             try {
-                var res = await Challonge.GetTournaments();
+                var rs = await Challonge.GetTournaments();
                 
                 // log response time
                 var chTimeNow = DateTime.UtcNow;

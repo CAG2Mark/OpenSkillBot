@@ -36,6 +36,8 @@ namespace OpenSkillBot.ChallongeAPI {
         public async Task<List<ChallongeTournament>> GetTournaments() {
             var res = await httpGet("tournaments.json");
 
+            // Console.WriteLine(res);
+
             List<ChallongeTournament> returns = new List<ChallongeTournament>();
 
             try {
