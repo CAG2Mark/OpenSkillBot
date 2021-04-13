@@ -168,15 +168,20 @@ namespace OpenSkillBot
         public BotAction LatestAction { get => Matches.LatestAction; set => Matches.LatestAction = value; }
         // for O(1) lookup of matches :)
         public Dictionary<string, BotAction> MatchHash { get => Matches.MatchHash; set => Matches.MatchHash = value; }
-        public BotController(bool initialize = true) {
+
+        bool testMode;
+
+        public BotController(bool initialize = true, bool testMode = false) {
+            this.testMode = testMode;
+
             if (initialize) Initialize();
         }
 
         bool initialized;
         public void Initialize() {
-            if (initialized) return;
+            if (initialized || testMode) return;
 
-                        // get leaderboard
+            // get leaderboard
             if (File.Exists(lbFileName)) {
                 CurLeaderboard = SerializeHelper.Deserialize<Leaderboard>(lbFileName);
                 CurLeaderboard.Initialize();
@@ -259,6 +264,8 @@ namespace OpenSkillBot
         }
 
         public bool SerializeLeaderboard() {
+            if (testMode) return true;
+
             try
             {
                 SerializeHelper.Serialize(CurLeaderboard, lbFileName);
@@ -273,6 +280,8 @@ namespace OpenSkillBot
         }
 
         public bool SerializeActions() {
+            if (testMode) return true;
+
             try {
                 SerializeHelper.Serialize(Matches, ahFileName);
                 return true;
@@ -284,6 +293,8 @@ namespace OpenSkillBot
         }
 
         public bool SerializePending() {
+            if (testMode) return true;
+            
             // Convert the pending players to a list of UUIDs
             try {
                 SerializeHelper.Serialize(pendingMatches, pmFileName);
@@ -296,6 +307,9 @@ namespace OpenSkillBot
         }
 
         public bool SerializeTourneys() {
+            if (testMode) return true;
+
+            
             // Convert the pending players to a list of UUIDs
             try {
                 SerializeHelper.Serialize(Tourneys, tourneyFileName);
@@ -308,6 +322,9 @@ namespace OpenSkillBot
         }
 
         public bool SerializeAchievements() {
+            if (testMode) return true;
+
+            
             // Convert the pending players to a list of UUIDs
             try {
                 SerializeHelper.Serialize(Achievements, achvsFileName);

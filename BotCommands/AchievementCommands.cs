@@ -127,7 +127,7 @@ namespace OpenSkillBot.BotCommands
 
         [Command("resendachvs")]
         [Summary("Deletes and resends all the achievements in the achievements channel.")]
-        public async Task ResentAchvsCommand() {
+        public async Task ResendAchvsCommand() {
             var msg = await Program.DiscordIO.SendMessage(
                 "", 
                 Context.Channel, 

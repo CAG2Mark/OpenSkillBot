@@ -81,7 +81,9 @@ namespace OpenSkillBot.Achievements
             var msg = await getMessage();
             if (msg == null) {
                 msg = await Program.DiscordIO.SendMessage("", AchvsChannel, GetEmbed());
-                this.DiscordMsgId = msg.Id;
+                
+                if (msg != null)
+                    this.DiscordMsgId = msg.Id;
             }
             else {
                 await Program.DiscordIO.EditMessage(msg, "", GetEmbed());

@@ -85,13 +85,18 @@ namespace OpenSkillBot.Skill
         protected override async Task sendMessage()
         {
             if (Program.Config.HistoryChannelId == 0) return;
+            if (Program.TestMode) return;
 
             // generate message
             var embed = GenerateEmbed();
             var chnl = Program.Config.GetHistoryChannel();
+
             if (this.discordMessageId == 0)
             {
-                this.discordMessageId = (await Program.DiscordIO.SendMessage("", chnl, embed)).Id;
+                var msg = await Program.DiscordIO.SendMessage("", chnl, embed);
+
+                if (msg != null)
+                    this.discordMessageId = msg.Id;
             }
             else
             {

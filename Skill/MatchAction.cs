@@ -66,6 +66,7 @@ namespace OpenSkillBot.Skill {
         protected override async Task sendMessage()
         {
             if (Program.Config.HistoryChannelId == 0) return;
+            if (Program.TestMode) return;
 
             // generate message
             var embed = MessageGenerator.MakeMatchMessage(this);

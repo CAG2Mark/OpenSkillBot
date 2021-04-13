@@ -623,6 +623,8 @@ namespace OpenSkillBot.Tournaments
         }
 
         public async Task SendMessage() {
+            if (Program.TestMode) return;
+
             var msg = await GetMessage();
             if (msg == null) {
                 message = await Program.DiscordIO.SendMessage("", Program.Config.GetTourneysChannel(), GetEmbed());

@@ -116,6 +116,7 @@ namespace OpenSkillBot.Skill
         {
             get => botToken; set => Set(ref botToken, value);
         }
+
         public ulong LeaderboardChannelId
         {
             get => leaderboardChannelId; set { Set(ref leaderboardChannelId, value); leaderboardChannel = null; }

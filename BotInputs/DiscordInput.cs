@@ -23,12 +23,20 @@ namespace OpenSkillBot.BotInputs
         public CommandService Commands;
         private IServiceProvider provider;
 
+        // currently only supports single guilds
         public SocketGuild CurGuild => client.Guilds.First();
 
         public bool IsReady { get; private set; }
+
+        private bool testMode;
         
-        public DiscordInput(string token) {
+        public DiscordInput(string token, bool testMode = false) {
             
+            if (testMode) {
+                this.testMode = testMode;
+                return;
+            }
+
             var cfg = new DiscordSocketConfig();
             cfg.AlwaysDownloadUsers = true;
             cfg.RestClientProvider = DefaultRestClientProvider.Create(useProxy:true);
@@ -105,6 +113,8 @@ namespace OpenSkillBot.BotInputs
         }
 
         async Task LoginToDiscord(string token) {
+            if (testMode) return;
+
 
             // Remember to keep token private or to read it from an 
             // external source! In this case, we are reading the token 
@@ -190,40 +200,58 @@ namespace OpenSkillBot.BotInputs
 
 
         public async Task<RestUserMessage> SendMessage(string message, ISocketMessageChannel channel, Embed embed = null) {
+            if (testMode) return null;
+            
             // sends the message and returns it
             return await channel.SendMessageAsync(message, false, embed);
         }
         
         public ISocketMessageChannel GetChannel(ulong id) {
+            if (testMode) return null;
+
             // the bot is designed to only be in one server
             return CurGuild.GetTextChannel(id);
         }
 
         public SocketGuildUser GetUser(ulong userId) {
+            if (testMode) return null;
+
             return CurGuild.GetUser(userId);
         }
 
         public async Task AddRole(ulong userId, ulong roleId) {
+            if (testMode) return;
+
             await AddRole(GetUser(userId), roleId);
         }
 
         public async Task AddRole(SocketGuildUser user, ulong roleId) {
+            if (testMode) return;
+
             await user.AddRoleAsync(CurGuild.GetRole(roleId));
         }
 
         public async Task RemoveRole(ulong userId, ulong roleId) {
+            if (testMode) return;
+
             await RemoveRole(GetUser(userId), roleId);
         }
 
         public async Task RemoveRole(SocketGuildUser user, ulong roleId) {
+            if (testMode) return;
+
             await user.RemoveRoleAsync(CurGuild.GetRole(roleId));
         }
 
         public async Task RemoveRoles(ulong userId, IEnumerable<ulong> roleIds) {
+            if (testMode) return;
+
             await RemoveRoles(GetUser(userId), roleIds);
         }
 
         public async Task RemoveRoles(SocketGuildUser user, IEnumerable<ulong> roleIds) {
+            if (testMode) return;
+
             var roles = new List<SocketRole>();
             foreach (var id in roleIds) {
                 roles.Add(CurGuild.GetRole(id));
@@ -232,16 +260,22 @@ namespace OpenSkillBot.BotInputs
         }
 
         public async Task<IMessage> GetMessage(ulong messageId, ulong channelId) {
+            if (testMode) return null;
+
             var channel = GetChannel(channelId);
             return await channel.GetMessageAsync(messageId);
         }
 
         public async Task<IMessage> GetMessage(ulong messageId, ISocketMessageChannel channel) {
+            if (testMode) return null;
+
             return await channel.GetMessageAsync(messageId);
         }
 
 
         public async Task EditMessage(ulong messageId, ulong channelId, string newText, Embed embed = null) {
+            if (testMode) return;
+
             try {
                 var msg = (RestUserMessage)await GetMessage(messageId, channelId);
                 await EditMessage(msg, newText, embed);
@@ -253,6 +287,8 @@ namespace OpenSkillBot.BotInputs
         }
 
         public async Task EditMessage(RestUserMessage msg, string newText, Embed embed = null) {
+            if (testMode) return;
+
             await msg.ModifyAsync(m => {
                 m.Content = newText;
                 m.Embed = embed;
@@ -263,6 +299,8 @@ namespace OpenSkillBot.BotInputs
 
         // Only undeafens users when they were deafened by the bot, and not someone else.
         public async Task SafeUndeafen(SocketGuildUser user) {
+            if (testMode) return;
+            
             if (deafened.Contains(user)) { 
                 await UndeafenUser(user);
                 deafened.Remove(user);
@@ -270,6 +308,8 @@ namespace OpenSkillBot.BotInputs
         }
 
         public async Task UndeafenUser(SocketGuildUser user) {
+            if (testMode) return;
+            
             if (user.VoiceChannel != null)
                 await user.ModifyAsync(p => {
                     p.Deaf = false;
@@ -278,6 +318,8 @@ namespace OpenSkillBot.BotInputs
         }
 
         public async Task DeafenUser(SocketGuildUser user) {
+            if (testMode) return;
+
             if (user.VoiceChannel != null)
                 await user.ModifyAsync(p => {
                     p.Deaf = true;
@@ -289,6 +331,8 @@ namespace OpenSkillBot.BotInputs
         const ulong sendInt = 2048;
         const ulong botInt = 224336;
         public async Task<RestCategoryChannel> CreateCategory(string name) {
+            if (testMode) return null;
+
             var cat = await CurGuild.CreateCategoryChannelAsync(name);
             await cat.AddPermissionOverwriteAsync(CurGuild.EveryoneRole, new OverwritePermissions(0, sendInt));
             await cat.AddPermissionOverwriteAsync(client.CurrentUser, new OverwritePermissions(botInt, 0));
@@ -296,6 +340,8 @@ namespace OpenSkillBot.BotInputs
         }
 
         public async Task<RestTextChannel> CreateChannel(string name, ulong categoryId = 0, bool everyoneCanSend = false) {
+            if (testMode) return null;
+
             var chnl = await CurGuild.CreateTextChannelAsync(name);
             // deny everyone send message perms
             if (!everyoneCanSend)
@@ -309,10 +355,14 @@ namespace OpenSkillBot.BotInputs
         }
 
         public async Task DeleteChannel(RestTextChannel chnl) {
+            if (testMode) return;
+
             await chnl.DeleteAsync();
         }
 
         public async Task PopulateChannel(ulong channelId, string[] text) {
+            if (testMode) return;
+
             try {
                 var chnl = GetChannel(channelId);
                 if (chnl == null) return;

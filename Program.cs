@@ -11,10 +11,11 @@ using OpenSkillBot.BotInputs;
 using OpenSkillBot.ChallongeAPI;
 using OpenSkillBot.Skill;
 using OpenSkillBot.Serialization;
+using System.Linq;
 
 
 // Perms integer: 29486144
-// Invite: https://discord.com/api/oauth2/authorize?client_id=781358879937789982&permissions=29486144&scope=bot
+// Invite: https://discord.com/api/oauth2/authorize?client_id=<INSERT CLIENT ID>&permissions=29486144&scope=bot
 
 namespace OpenSkillBot
 {
@@ -37,11 +38,24 @@ namespace OpenSkillBot
 
         public static ChallongeConnection Challonge;
 
+        public static bool TestMode = false;
+
+        /*
+
+        "Test mode" starts the bot in a blank and default state for unit testing.
+
+        Any Discord and Challonge integration is completely disabled. Tests here are designed to test the core logic and functionality of the bot.
+        They are not designed to test the fucntionality of the APIs and response times.
+
+        */
+
         static void Main(string[] args)
-        		=> new Program().MainAsync().GetAwaiter().GetResult();
+        		=> new Program().MainAsync(args).GetAwaiter().GetResult();
 
         public static int InitTime = 0;
-        public async Task MainAsync() {
+        public async Task MainAsync(string[] args) {
+
+            TestMode = (args.Contains("--test-mode"));
 
             if (File.Exists("config.json"))
                 Config = SerializeHelper.Deserialize<BotConfig>("config.json");
@@ -49,7 +63,7 @@ namespace OpenSkillBot
             if (Config != null) {
                 DiscordToken = Config.BotToken;
             }
-            else {
+            else if (!TestMode) {
                 Console.WriteLine("Please enter your Discord Bot Token. If you don't have one, please create one at https://discord.com/developers/applications.");
                 DiscordToken = Console.ReadLine().Trim();
 
@@ -59,11 +73,11 @@ namespace OpenSkillBot
 
             Config.PropertyChanged += (o, e) => SerializeConfig();
 
-            DiscordIO = new DiscordInput(DiscordToken);
+            DiscordIO = new DiscordInput(DiscordToken, TestMode);
 
             var initTime = DateTime.UtcNow;
 
-            Controller = new BotController(true);
+            Controller = new BotController(true, TestMode);
             // Controller.Initialize();
 
             var doneTime = DateTime.UtcNow;
