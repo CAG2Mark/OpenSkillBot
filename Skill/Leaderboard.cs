@@ -214,6 +214,12 @@ namespace OpenSkillBot.Skill
             });
         }
 
+        private static string s(double f) {
+            if (Program.Config.SkillDecimalPlaces == 0) return f.ToString("0");
+             
+            return f.ToString($"0.{"".PadLeft(Program.Config.SkillDecimalPlaces, '0')}");
+        }
+
         // returns the leaderboard string, but splits it so that each string is less than a specified limit
         public IEnumerable<string> GenerateLeaderboardText(int charLimit) {
             var nl = Environment.NewLine;
@@ -254,7 +260,7 @@ namespace OpenSkillBot.Skill
                     // unranked title
                     if (j == ogCnt) nextStr += $"**{Rank.GetUnrankedRank().Name}**{nl}";
                     
-                    nextStr += $"{player.IGN}: {Math.Round(player.DisplayedSkill).ToString("#")} RD {Math.Round(player.Sigma).ToString("#")}{nl}";
+                    nextStr += $"{player.IGN}: {s(player.DisplayedSkill)} RD {s(player.Sigma)}{nl}";
                 }
 
                 if (sb.Length + nextStr.Length > charLimit) {

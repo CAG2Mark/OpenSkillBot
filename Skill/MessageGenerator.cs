@@ -3,13 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Discord;
+using OpenSkillBot.BotCommands;
 
 namespace OpenSkillBot.Skill
 {
     public static class MessageGenerator
     {
-        private static int r(double f) {
-            return (int)Math.Round(f, 0);
+        private static double r(double f) {
+            return Math.Round(f, Program.Config.SkillDecimalPlaces);
+        }
+
+        private static string s(double f) {
+            if (Program.Config.SkillDecimalPlaces == 0) return f.ToString("0");
+             
+            return f.ToString($"0.{"".PadLeft(Program.Config.SkillDecimalPlaces, '0')}");
         }
 
         public static (string SkillChanges, string RankChanges) MatchDeltaGenerator(IEnumerable<OldPlayerData> oldPlayerDatas, IEnumerable<OldPlayerData> newPlayerData) {
@@ -30,13 +37,19 @@ namespace OpenSkillBot.Skill
                     r_sb.Append($"{player.IGN}: *{(oldRank == null ? "None" : "" + oldRank.Name)}* → *{(newRank == null ? "None" : "" + newRank.Name)}*{Environment.NewLine}");
                 }
 
-                int tsDelta = r(DisplayedSkill(newMatch)) - r(DisplayedSkill(old));
-                int sigmaDelta = r(newMatch.Sigma) - r(old.Sigma);
+                var displayedNew = r(DisplayedSkill(newMatch));
+                var displayedOld = r(DisplayedSkill(old));
 
-                string tsDelta_s = (tsDelta < 0 ? "" : "+") + r(tsDelta);
-                string sigmaDelta_s = (sigmaDelta < 0 ? "" : "+") + r(sigmaDelta);
+                var sigmaNew = r(newMatch.Sigma);
+                var sigmaOld = r(old.Sigma);
 
-                sb.Append($"{player.IGN} **{tsDelta_s}, {sigmaDelta_s}** (*{r(DisplayedSkill(old))} RD {r(old.Sigma)}* → *{r(DisplayedSkill(newMatch))} RD {r(newMatch.Sigma)}*)");
+                double tsDelta = displayedNew - displayedOld;
+                double sigmaDelta = sigmaNew - sigmaOld;
+
+                string tsDelta_s = (tsDelta < 0 ? "" : "+") + s(tsDelta);
+                string sigmaDelta_s = (sigmaDelta < 0 ? "" : "+") + s(sigmaDelta);
+
+                sb.Append($"{player.IGN} **{tsDelta_s}, {sigmaDelta_s}** (*{s(displayedOld)} RD {s(sigmaOld)}* → *{s(displayedNew)} RD {s(sigmaNew)}*)");
                 sb.Append(Environment.NewLine);
             }
             return (sb.ToString(), r_sb.ToString());
@@ -53,35 +66,9 @@ namespace OpenSkillBot.Skill
             string w_s = string.Join(", ", winner.Players.Select(x => x.IGN));
             string l_s = string.Join(", ", loser.Players.Select(x => x.IGN));
 
-            StringBuilder deltas = new StringBuilder();
-            StringBuilder rankChanges = new StringBuilder();
-
-            // Skill and rank changes
-            foreach(var o in action.OldPlayerDatas) {
-                var uuid = o.UUId;
-
-                var oldRank = Player.GetRank(o.Mu, o.Sigma);
-                var oldTs = r(o.Mu - o.Sigma * Program.Config.TrueSkillDeviations);
-
-                var temp = winner.Players.FirstOrDefault(o => o.UUId == uuid);
-                var player = temp == null ? loser.Players.First(o => o.UUId == uuid) : temp;
-
-                var newRank = Player.GetRank(player.Mu, player.Sigma);
-
-                int tsDelta = r(player.DisplayedSkill) - oldTs;
-                int rdDelta = (r(player.Sigma) - r(o.Sigma));
-
-                deltas.Append(
-                    $"{player.IGN} **{(tsDelta < 0 ? "" : "+")}{tsDelta}, {(rdDelta < 0 ? "" : "+")}{rdDelta}** " + 
-                    $"(_{r(oldTs)} RD {r(o.Sigma)}_ → _{r(player.DisplayedSkill)} RD {r(player.Sigma)}_){Environment.NewLine}"
-                );
-
-                // logically this works
-                if (oldRank == null && newRank == null) continue;
-                if ((oldRank == null && newRank != null) || !oldRank.Equals(newRank)) {          
-                    rankChanges.Append($"**{player.IGN}**: _{(oldRank == null ? "None" : "" + oldRank.Name)}_ → _{(newRank == null ? "None" : "" + newRank.Name)}_{Environment.NewLine}");
-                }
-            }
+            var changes = MatchDeltaGenerator(
+                action.OldPlayerDatas, 
+                SkillCommands.ToOldPlayerData(new Team[] {action.Winner, action.Loser}));
             
 
             EmbedBuilder embed = new EmbedBuilder()
@@ -92,10 +79,10 @@ namespace OpenSkillBot.Skill
             embed.Title = w_s + " vs " + l_s;
 
             embed.AddField($"Winner{(winner.Players.Count() == 1 ? "" : "s")}:", action.IsDraw ? "The match ended in a draw" : w_s);
-            embed.AddField("Skill Changes", deltas);
+            embed.AddField("Skill Changes", changes.SkillChanges);
 
-            if (!string.IsNullOrWhiteSpace(rankChanges.ToString())) {
-                embed.AddField("Rank Changes", rankChanges);
+            if (!string.IsNullOrWhiteSpace(changes.RankChanges)) {
+                embed.AddField("Rank Changes", changes.RankChanges);
             }
 
             return embed.Build();

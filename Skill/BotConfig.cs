@@ -11,8 +11,11 @@ namespace OpenSkillBot.Skill
     public class BotConfig : PropertyNotifier
     {
 
+        private sbyte skillDecimalPlaces = 0;
+        
         private double defaultSigma = 100;
         private double defaultMu = 1475;
+        
         private double tau = 5;
         private double beta = 50;
         private double drawProbability = 0.05;
@@ -46,6 +49,15 @@ namespace OpenSkillBot.Skill
         }
 
         #region Skill-related
+
+        /// <summary>
+        /// How many decimal places the skill will be printed to.
+        /// </summary>
+        /// <value></value>
+        public sbyte SkillDecimalPlaces
+        {
+            get => skillDecimalPlaces; set => Set(ref skillDecimalPlaces, value);
+        }
 
         public double DefaultSigma
         {
