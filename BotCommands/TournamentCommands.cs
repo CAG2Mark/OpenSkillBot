@@ -13,7 +13,7 @@ namespace OpenSkillBot.BotCommands
 {
     [Name("Tournaments")]
     [Summary("Manage tournaments and run tournament-specific commands.")]
-    public class TournamentCommands : ModuleBase<SocketCommandContext> {
+    public class TournamentCommands : ModuleBaseEx<SocketCommandContext> {
 
         [RequirePermittedRole]
         [Command("createtournament")]
@@ -28,7 +28,7 @@ namespace OpenSkillBot.BotCommands
 
             await Program.Controller.AddTournament(tourney);
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                 $"Created the tournament **{tournamentName}**:" + Environment.NewLine + Environment.NewLine +
                 $"Date: {tourney.GetStartTimeStr()}" + Environment.NewLine
             ));
@@ -49,7 +49,7 @@ namespace OpenSkillBot.BotCommands
         ) {
             var tourney = Tournament.GenerateTournament(tournamentName, utcTime, calendarDate, format);
 
-            var msgTask = Program.DiscordIO.SendMessage("", Context.Channel, EmbedHelper.GenerateInfoEmbed(":arrows_counterclockwise: Created tournament. Creating on challonge..."));
+            var msgTask = SendProgressAsync(EmbedHelper.GenerateInfoEmbed(":arrows_counterclockwise: Created tournament. Creating on challonge..."));
             var msg = await msgTask;
             
             var ct = await tourney.SetUpChallonge();
@@ -58,7 +58,7 @@ namespace OpenSkillBot.BotCommands
 
             await msg.DeleteAsync();
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                 $"Created the tournament **{tournamentName}**:" + Environment.NewLine + Environment.NewLine +
                 $"Date: {tourney.GetStartTimeStr()}" + Environment.NewLine +
                 $"Challonge URL: {ct.FullChallongeUrl}"
@@ -75,7 +75,7 @@ namespace OpenSkillBot.BotCommands
             var tourneys = Program.Controller.Tournaments;
 
             if (tourneys == null || tourneys.Count == 0) {
-                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no tournaments."));
+                await ReplyAsync(EmbedHelper.GenerateInfoEmbed("There are no tournaments."));
                 return;
             }
 
@@ -83,7 +83,7 @@ namespace OpenSkillBot.BotCommands
             for (int i = 0; i < tourneys.Count; ++i) {
                 eb.AddField((i+1) + " - " + tourneys[i].Name, "Time: " + tourneys[i].GetStartTimeStr());
             }
-            await ReplyAsync("", false, eb.Build());
+            await ReplyAsync(eb.Build());
         }
 
         // lazy method to just reference the selected tournament in the controller
@@ -101,7 +101,7 @@ namespace OpenSkillBot.BotCommands
         ) {
             var tourneys = Program.Controller.Tournaments;
             if (tourneyIndex < 1 || tourneyIndex > tourneys.Count) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     $"{tourneyIndex} is out of range; it should be between 1 and {tourneys.Count} inclusive.")
                 );
                 return;
@@ -110,7 +110,7 @@ namespace OpenSkillBot.BotCommands
 
             selectedTourney = t;
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Set the selected tournament to **{t.Name}**."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Set the selected tournament to **{t.Name}**."));
         }
 
 
@@ -120,13 +120,13 @@ namespace OpenSkillBot.BotCommands
         [Summary("Views the tournament, including moderation information with the output.")]
         public async Task ViewSelectedTournamnetCommand() {
             if (selectedTourney == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
                 );
                 return;
             }
 
-            await ReplyAsync("", false, selectedTourney.GetEmbed(true));
+            await ReplyAsync(selectedTourney.GetEmbed(true));
         }
 
         [RequirePermittedRole]
@@ -137,7 +137,7 @@ namespace OpenSkillBot.BotCommands
             [Summary("A space-separated list of the players to explicitly allow.")][Remainder] string players) {
             
             if (selectedTourney == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
                 );
                 return;
@@ -149,22 +149,22 @@ namespace OpenSkillBot.BotCommands
                 try {
                     foreach (var p in t.Players) {
                         if (selectedTourney.AllowPlayer(p)) {
-                            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Note: Removed {p.IGN} from the denied list."));
+                            await ReplyAsync(EmbedHelper.GenerateInfoEmbed($"Note: Removed {p.IGN} from the denied list."));
                         }
                         playerNames.Append(p.IGN + Environment.NewLine);
                     }
                 } catch (Exception e) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                    await ReplyAsync(EmbedHelper.GenerateWarnEmbed(e.Message));
                     continue;
                 }
             }
 
             if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                     $"Added the following players to the allowed list of **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
                     playerNames.ToString()));
             else
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed("No changes were made."));
         }
 
         // [SignupsChannelOnly]
@@ -181,7 +181,7 @@ namespace OpenSkillBot.BotCommands
 
                 var player = Program.CurLeaderboard.Players.FirstOrDefault(p => p.DiscordId == Context.Message.Author.Id);
                 if (player == null) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("You are not linked to the leaderboard. Please contact an administrator if you believe this is a mistake."));
+                    await ReplyAsync(EmbedHelper.GenerateErrorEmbed("You are not linked to the leaderboard. Please contact an administrator if you believe this is a mistake."));
                     return;
                 }
 
@@ -193,17 +193,17 @@ namespace OpenSkillBot.BotCommands
 
                         var res = await tourney.Signup(player, message);
                         if (res == 0) {
-                            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"You were successfully added to the tournament **{tourney.Name}**."));
+                            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"You were successfully added to the tournament **{tourney.Name}**."));
                         }
                         else if (res == 1) {
-                            await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"You are already in the tournament **{tourney.Name}**."));
+                            await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"You are already in the tournament **{tourney.Name}**."));
                         }
                         else {
-                            await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"You do not have permission to join the tournament **{tourney.Name}**."));
+                            await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"You do not have permission to join the tournament **{tourney.Name}**."));
                         }
                     }
                     catch (Exception) {
-                        await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not infer the tournament from *{t_s}*."));
+                        await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not infer the tournament from *{t_s}*."));
                     }
                 }
             }
@@ -216,7 +216,7 @@ namespace OpenSkillBot.BotCommands
             [Summary("A space-separated list of the players to explicitly deny.")][Remainder] string players) {
             
             if (selectedTourney == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
                 );
                 return;
@@ -228,22 +228,22 @@ namespace OpenSkillBot.BotCommands
                 try {
                     foreach (var p in t.Players) {
                         if (selectedTourney.DenyPlayer(p)) {
-                            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Note: Removed {p.IGN} from the allow list."));
+                            await ReplyAsync(EmbedHelper.GenerateInfoEmbed($"Note: Removed {p.IGN} from the allow list."));
                         }
                         playerNames.Append(p.IGN + Environment.NewLine);
                     }
                 } catch (Exception e) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                    await ReplyAsync(EmbedHelper.GenerateWarnEmbed(e.Message));
                     continue;
                 }
             }
 
             if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                     $"Added the following players to the allowed list of **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
                     playerNames.ToString()));
             else
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed("No changes were made."));
         }
 
             
@@ -256,21 +256,20 @@ namespace OpenSkillBot.BotCommands
             [Summary("A space-separated list of the teams to add. Separate players in a team with a comma.")][Remainder] string players) {
             
             if (selectedTourney == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
                 );
                 return;
             }
 
-            var msg = await Program.DiscordIO.SendMessage("", 
-                Context.Channel, 
+            var msg = await SendProgressAsync( 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Adding players to the tournament **{selectedTourney.Name}**..."));
 
             
             var playerNames = new StringBuilder();
 
             EventHandler<MsgEventArgs> recvError = async (o, e) => {
-                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                await ReplyAsync(EmbedHelper.GenerateWarnEmbed(e.Message));
             };
 
             EventHandler<MsgEventArgs> recvAdded = async (o, e) => {
@@ -305,10 +304,10 @@ namespace OpenSkillBot.BotCommands
                     if ((await addTask).Item1)
                         playerNames.Append(team + Environment.NewLine);
                     else
-                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"**{team}** is already in the bracket."));
+                        await ReplyAsync(EmbedHelper.GenerateWarnEmbed($"**{team}** is already in the bracket."));
                 }
                 catch (Exception e) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                    await ReplyAsync(EmbedHelper.GenerateWarnEmbed(e.Message));
                     continue;
                 }
             }
@@ -319,11 +318,11 @@ namespace OpenSkillBot.BotCommands
 
             await Task.WhenAll(editTask2, selectedTourney.RebuildIndex());
             var replyTask = !string.IsNullOrWhiteSpace(playerNames.ToString()) ?
-                    ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                    ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                     $"Added the following players/teams to the tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
                     playerNames.ToString()))
                     :
-                    ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+                    ReplyAsync(EmbedHelper.GenerateSuccessEmbed("No changes were made."));
             
             await Task.WhenAll(replyTask, selectedTourney.SendMessage(), msg.DeleteAsync());
         }
@@ -336,13 +335,12 @@ namespace OpenSkillBot.BotCommands
             [Summary("A space-separated list of the teams to add. Separate players in a team with a comma.")][Remainder] string players) {
             
             if (selectedTourney == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
                 );
                 return;
             }
-            var msg = await Program.DiscordIO.SendMessage("", 
-                Context.Channel, 
+            var msg = await SendProgressAsync( 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Removing players from the tournament **{selectedTourney.Name}**..."));
 
             var playerNames = new StringBuilder();
@@ -352,9 +350,9 @@ namespace OpenSkillBot.BotCommands
                     if (await selectedTourney.RemoveTeam(t, true))
                         playerNames.Append(t + Environment.NewLine);
                     else
-                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not remove **{t}** as they were not in the tournament."));
+                        await ReplyAsync(EmbedHelper.GenerateWarnEmbed($"Could not remove **{t}** as they were not in the tournament."));
                 } catch (Exception e) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(e.Message));
+                    await ReplyAsync(EmbedHelper.GenerateWarnEmbed(e.Message));
                     continue;
                 }
             }
@@ -364,11 +362,11 @@ namespace OpenSkillBot.BotCommands
             await msg.DeleteAsync();
 
             if (!string.IsNullOrWhiteSpace(playerNames.ToString()))
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                     $"Removed the following players/teams from tournament **{selectedTourney.Name}**:" + Environment.NewLine + Environment.NewLine +
                     playerNames.ToString()));
             else
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("No changes were made."));
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed("No changes were made."));
         }
 
         [RequirePermittedRole]
@@ -376,7 +374,7 @@ namespace OpenSkillBot.BotCommands
         [Summary("Deletes the selected tournament.")]
         public async Task DeleteTournamentCommand() {
             if (selectedTourney == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
                 );
                 return;
@@ -385,7 +383,7 @@ namespace OpenSkillBot.BotCommands
             var t = selectedTourney;
             await Program.Controller.RemoveTournament(t);
             selectedTourney = null;
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Deleted the tournament **{t.Name}**."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Deleted the tournament **{t.Name}**."));
         }
 
         [RequirePermittedRole]
@@ -394,7 +392,7 @@ namespace OpenSkillBot.BotCommands
         [Summary("Starts the tournament.")]
         public async Task StartTournamentCommand() {
             if (selectedTourney == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
                 );
                 return;
@@ -402,7 +400,7 @@ namespace OpenSkillBot.BotCommands
 
             await Program.Controller.StartTournament(selectedTourney);
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Started the tournament {selectedTourney.Name}."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Started the tournament {selectedTourney.Name}."));
         }
 
         [RequirePermittedRole]
@@ -411,21 +409,20 @@ namespace OpenSkillBot.BotCommands
         [Summary("Fetches the list of participants and matches from Challonge for the current tournament, then updates the local list of participants.")]
         public async Task RebuildParticipantsCommand() {
             if (selectedTourney == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     "No tournament is currently selected. Set one using `!setcurrenttournament` or `!sct`.")
                 );
                 return;
             }
 
-            var msg = await Program.DiscordIO.SendMessage("", 
-                Context.Channel, 
+            var msg = await SendProgressAsync( 
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Rebuilding the participants and matches index of **{selectedTourney.Name}**..."));
 
             // rebuild
             try {
                 await selectedTourney.RebuildIndex(fullRepopulate:true);
             } catch (Exception e) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Aborted rebuilding the index because of the following error:"
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed("Aborted rebuilding the index because of the following error:"
                 + Environment.NewLine + Environment.NewLine + e.Message));
                 await msg.DeleteAsync();
 
@@ -433,7 +430,7 @@ namespace OpenSkillBot.BotCommands
             }
 
             await msg.DeleteAsync();
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Rebuilt the index of **{selectedTourney.Name}**."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Rebuilt the index of **{selectedTourney.Name}**."));
         }
 
         [RequirePermittedRole]
@@ -446,24 +443,24 @@ namespace OpenSkillBot.BotCommands
             [Summary("Whether or not to force start the match even if the player is already playing.")] bool force = false
         ) {
             if (!Program.Controller.IsTourneyActive) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     $"The selected tournament **{selectedTourney.Name}** is not active.")
                 );
                 return;
             }
 
             var res = await SkillCommands.StartMatch(team1, team2, force, true);
-            await ReplyAsync("", false, res.Item2);   
+            await ReplyAsync(res.Item2);   
             try {
                 await selectedTourney.StartMatch(res.Item1);
                 if (selectedTourney.IsChallongeLinked) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                    await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                         $"Marked the match **{res.Item1.Team1}** vs **{res.Item1.Team2}** as underway on Challonge."
                     ));
                 }
             }
             catch (Exception ex) {
-                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(ex.Message));
+                await ReplyAsync(EmbedHelper.GenerateWarnEmbed(ex.Message));
             }     
         }
 
@@ -476,7 +473,7 @@ namespace OpenSkillBot.BotCommands
                 "Is optional, but will be autofilled if Challonge is linked.")] string rankings = null
         ) {
             if (!Program.Controller.IsTourneyActive) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     $"The selected tournament **{selectedTourney.Name}** is not active.")
                 );
                 return;
@@ -495,13 +492,13 @@ namespace OpenSkillBot.BotCommands
             }
 
             if (!(await t.FinalizeTournament(rankingsList))) {
-                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed("Could not finalise the tournament on Challonge."));
+                await ReplyAsync(EmbedHelper.GenerateWarnEmbed("Could not finalise the tournament on Challonge."));
             }
             else if (t.IsChallongeLinked) {
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Finalised the tournament on Challonge."));
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed("Finalised the tournament on Challonge."));
             }
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"The tournament **{t.Name}** has been marked as completed."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"The tournament **{t.Name}** has been marked as completed."));
         }
 
         [RequirePermittedRole]
@@ -512,27 +509,27 @@ namespace OpenSkillBot.BotCommands
             [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1
         ) {
             if (!Program.Controller.IsTourneyActive) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(
                     $"The selected tournament **{selectedTourney.Name}** is not active.")
                 );
                 return;
             }
         
             var res = await SkillCommands.FullMatch(team1, team2, result, true);
-            await ReplyAsync("", false, res.Item2);
+            await ReplyAsync(res.Item2);
 
             if (res.Item1.IsDraw) return;
 
             try {
                 await selectedTourney.AddMatch(res.Item1);
                 if (selectedTourney.IsChallongeLinked) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+                    await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                         $"Reported **{res.Item1.Winner}** as the winner on Challonge."
                     ));
                 }
             }
             catch (Exception ex) {
-                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed(ex.Message));
+                await ReplyAsync(EmbedHelper.GenerateWarnEmbed(ex.Message));
             }
         }
 

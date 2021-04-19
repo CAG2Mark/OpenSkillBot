@@ -13,7 +13,7 @@ namespace OpenSkillBot.BotCommands
 {
     [Name("Basic Commands")]
     [Summary("Commands providing basic interaction with the bot and set-up help.")]
-    public class BasicCommands : ModuleBase<SocketCommandContext>
+    public class BasicCommands : ModuleBaseEx<SocketCommandContext>
     {
         public static string GetModuleQueryableName(ModuleInfo module) {
             return module.Name.Split(" ")[0].ToLower();
@@ -34,7 +34,7 @@ namespace OpenSkillBot.BotCommands
             var diff2 = Math.Max(0, (timeSent - timeReceivedAuthor).Milliseconds);
 
             await Task.WhenAll(
-                ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Gateway receive latency:  **{diff1}ms**" + Environment.NewLine +
+                ReplyAsync(EmbedHelper.GenerateInfoEmbed($"Gateway receive latency:  **{diff1}ms**" + Environment.NewLine +
                     $"Gateway send latency: **{diff2}ms**" + Environment.NewLine +
                     $"Total ping: **{diff1 + diff2}ms**", ":ping_pong: Pong!", null)),
                 msg.DeleteAsync()
@@ -48,19 +48,19 @@ namespace OpenSkillBot.BotCommands
         public Task FixCAGCommand() {
             var rand = new Random();
             var num = rand.Next();
-            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Fixed a total of **{num}** CAGs."));
+            return ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Fixed a total of **{num}** CAGs."));
         }
 
         [Command("betterbot")]
         [Summary("Gives the superior Discord bot. (Easter Egg)")]
         public Task BetterBotCommand(string a) {
-            return ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"OpenSkillBot is superior."));
+            return ReplyAsync(EmbedHelper.GenerateInfoEmbed($"OpenSkillBot is superior."));
         }
 
         [Command("decipher")]
         [Summary("Deciphers a message. (Easter Egg)")]
         public Task DecipherCommand([Summary("The string to decipher.")] [Remainder] string toDecipher) {
-            return ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Failed to decipher the message." +  
+            return ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Failed to decipher the message." +  
             Environment.NewLine + Environment.NewLine +
             "**Most Likely Cause:**" + Environment.NewLine  + "The message was composed by Cistic."));
         }
@@ -69,7 +69,7 @@ namespace OpenSkillBot.BotCommands
         [Command("exit")]
         [Summary("Kills the current bot process.")]
         public async Task KillCommand() {
-            await ReplyAsync("OpenTrueskillBot was slain by " + Context.Message.Author.Username);
+            await ReplyAsync("OpenSkillBot was slain by " + Context.Message.Author.Username);
             await Program.DiscordIO.Logout();
             Environment.Exit(0);
         }
@@ -108,7 +108,7 @@ namespace OpenSkillBot.BotCommands
             Program.Config.SignupsChannelId = 0;
 
             await msg.DeleteAsync();
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Deleted the bot channels."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed("Deleted the bot channels."));
         }
 
         [RequireUserPermission(GuildPermission.ManageGuild)]
@@ -155,7 +155,7 @@ namespace OpenSkillBot.BotCommands
 
             Program.CurLeaderboard.InvokeChange(); 
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Succesfully created all the required channels. Basic permissions have been set up for the channels. Change the permissions as you please."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed("Succesfully created all the required channels. Basic permissions have been set up for the channels. Change the permissions as you please."));
         }
 
         [RequireUserPermission(GuildPermission.ManageGuild)]
@@ -183,7 +183,7 @@ namespace OpenSkillBot.BotCommands
 
             Program.CurLeaderboard.InvokeChange();  
 
-            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed("Succesfully linked."));
+            return ReplyAsync(EmbedHelper.GenerateSuccessEmbed("Succesfully linked."));
         }
 
         [RequireUserPermission(GuildPermission.ManageGuild)]
@@ -192,7 +192,7 @@ namespace OpenSkillBot.BotCommands
         public Task AddPermittedRoleCommand([Remainder][Summary("The name of the role to add.")] string roleName) {
             Program.Config.PermittedRoleNames.Add(roleName.Trim().ToLower());
             Program.SerializeConfig();
-            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Permitted users with the role **{roleName}**."));
+            return ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Permitted users with the role **{roleName}**."));
         }
 
         [RequireUserPermission(GuildPermission.ManageGuild)]
@@ -204,7 +204,7 @@ namespace OpenSkillBot.BotCommands
             foreach (var r in Program.Config.PermittedRoleNames) {
                 sb.Append($"{r}{Environment.NewLine}");
             }
-            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
+            return ReplyAsync(EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
         }
 
         [RequireUserPermission(GuildPermission.ManageGuild)]
@@ -213,7 +213,7 @@ namespace OpenSkillBot.BotCommands
         public Task RemovePermittedRoleCommand([Remainder][Summary("The name of the role to remove.")] string roleName) {
             Program.Config.PermittedRoleNames.Remove(roleName);
             Program.SerializeConfig();
-            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{roleName}** is no longer a permitted role."));
+            return ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"**{roleName}** is no longer a permitted role."));
         }
 
         public static string GenerateCommandUsage(CommandInfo cmd) {
@@ -237,7 +237,7 @@ namespace OpenSkillBot.BotCommands
             foreach (var cmd in module.Commands) {
                 if (shouldDisplay(cmd)) {
                     displayedAny = true;
-                    f.AddField(GenerateCommandUsage(cmd) + " " + GenerateCommandAliases(cmd), cmd.Summary??"No description", true);
+                    f.AddField(GenerateCommandUsage(cmd) + " " + GenerateCommandAliases(cmd), cmd.Summary??"No description");
                 }
             }
 
@@ -283,7 +283,7 @@ namespace OpenSkillBot.BotCommands
                 }
             }
 
-            return ReplyAsync("", false, builder.Build());
+            return ReplyAsync(builder.Build());
         }
 
         [Command("help")]
@@ -295,7 +295,7 @@ namespace OpenSkillBot.BotCommands
             // first search modules
             var moduleResult = Program.DiscordIO.Commands.Modules.FirstOrDefault(m => query.Equals(GetModuleQueryableName(m)));
             if (moduleResult != null && !forceCmd) {
-                await ReplyAsync("", false, GenerateModuleEmbed(moduleResult));
+                await ReplyAsync(GenerateModuleEmbed(moduleResult));
                 return;
             }
 
@@ -304,7 +304,7 @@ namespace OpenSkillBot.BotCommands
 
             if (!cmdResult.IsSuccess || cmdResult.Commands == null)
             {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the command {(forceCmd ? "" : "or module ")}**{query}**."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the command {(forceCmd ? "" : "or module ")}**{query}**."));
                 return;
             }
 
@@ -334,11 +334,11 @@ namespace OpenSkillBot.BotCommands
             }
 
             if (displayedCnt != 0) {
-                await ReplyAsync("", false, builder.Build());
+                await ReplyAsync(builder.Build());
             }
             else {
                 builder.Description = $"Found **{result_.Count}** command{(result_.Count == 1 ? "" : "s")}:";
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("You do not have permission to view this command."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed("You do not have permission to view this command."));
             }
         }
 

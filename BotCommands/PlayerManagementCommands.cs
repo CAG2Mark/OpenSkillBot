@@ -10,7 +10,7 @@ namespace OpenSkillBot.BotCommands
     [RequirePermittedRole]
     [Name("Player Management")]
     [Summary("Add, edit and delete players.")]
-    public class PlayerManagementCommands : ModuleBase<SocketCommandContext>
+    public class PlayerManagementCommands : ModuleBaseEx<SocketCommandContext>
     {
         [Command("createplayer")]
         [Alias(new string[] {"cp"})]
@@ -27,7 +27,7 @@ namespace OpenSkillBot.BotCommands
             
             Program.Controller.CurLeaderboard.AddPlayer(np);
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                 $"Added player **{name}** with skill {np.DisplayedSkill} RD {np.Sigma}.", "Player ID: " + np.UUId)
                 );
         }
@@ -47,7 +47,7 @@ namespace OpenSkillBot.BotCommands
 
             var user = Program.DiscordIO.GetUser(id);
             if (user == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"The ID `{id}` is invalid."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"The ID `{id}` is invalid."));
                 return;
             }
 
@@ -56,7 +56,7 @@ namespace OpenSkillBot.BotCommands
             
             Program.Controller.CurLeaderboard.AddPlayer(np);
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                 $"Added player **{name}** with skill {np.DisplayedSkill} RD {np.Sigma}," 
                 + $" and linked them to the Discord User {user.Mention}.", "Player ID: " + np.UUId)
                 );
@@ -70,7 +70,7 @@ namespace OpenSkillBot.BotCommands
         ) {
 
             if (Program.CurLeaderboard.LatestJoinedPlayer == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Could not identify the latest player who has joined."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed("Could not identify the latest player who has joined."));
                 return;
             }
 
@@ -95,20 +95,20 @@ namespace OpenSkillBot.BotCommands
         ) {
             var player = Program.CurLeaderboard.FuzzySearch(name);
             if (player == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the player **{name}**."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the player **{name}**."));
                 return;
             }
 
             var user = Program.DiscordIO.GetUser(id);
             if (user == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"The ID `{id}` is invalid."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"The ID `{id}` is invalid."));
                 return;
             }
 
             player.LinkDiscord(id);
             await player.UpdateRank(true);
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** is now linked to **{user.Username}#{user.DiscriminatorValue}**"));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** is now linked to **{user.Username}#{user.DiscriminatorValue}**"));
         }
 
         [Command("unlink")]
@@ -119,13 +119,13 @@ namespace OpenSkillBot.BotCommands
             var player = FindPlayer(name);
 
             if (player == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
                 return;
             }
 
             player.UnlinkDiscord();
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** has been unlinked."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** has been unlinked."));
         }
 
         [Command("editplayer")]
@@ -140,7 +140,7 @@ namespace OpenSkillBot.BotCommands
             var player = FindPlayer(name);
 
             if (player == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
                 return;
             }
 
@@ -164,7 +164,7 @@ namespace OpenSkillBot.BotCommands
 
             Program.CurLeaderboard.InvokeChange();
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}**'s data has been updated to the following: {Environment.NewLine}{Environment.NewLine}"
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}**'s data has been updated to the following: {Environment.NewLine}{Environment.NewLine}"
                 + player.GenerateSummary()));
         }
 
@@ -173,7 +173,7 @@ namespace OpenSkillBot.BotCommands
         public async Task FindPlayerCommand([Summary("The player's name, ID, or Discord ID.")] string name) {
             var player = FindPlayer(name);
             if (player == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
                 return;
             }
 
@@ -183,7 +183,7 @@ namespace OpenSkillBot.BotCommands
                 embed.ThumbnailUrl = player.DiscordUser.GetAvatarUrl();
             }
 
-            await ReplyAsync("", false, embed.Build());
+            await ReplyAsync(embed.Build());
         }
 
 
@@ -193,7 +193,7 @@ namespace OpenSkillBot.BotCommands
         public async Task DeletePlayer([Summary("The player's name, ID, or Discord ID.")] string name) {
             var player = FindPlayer(name);
             if (player == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
                 return;
             }
 
@@ -201,7 +201,7 @@ namespace OpenSkillBot.BotCommands
 
             Program.CurLeaderboard.InvokeChange();
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** has been removed from the leaderboard."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"**{player.IGN}** has been removed from the leaderboard."));
         }
 
         public static Player FindPlayer(string name) {

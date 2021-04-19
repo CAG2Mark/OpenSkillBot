@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Threading.Tasks;
+using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using OpenSkillBot.BotCommands;
@@ -58,25 +59,29 @@ namespace OpenSkillBot.BotInputs
 
             // Execute the command with the command context we just
             // created, along with the service provider for precondition checks.
-            
-            // Keep in mind that result does not indicate a return value
-            // rather an object stating if the command executed successfully.
-            var result = await _commands.ExecuteAsync(
-                context: context, 
-                argPos: argPos,
-                services: null);
 
-            // Optionally, we may inform the user if the command fails
-            // to be executed; however, this may not always be desired,
-            // as it may clog up the request queue should a user spam a
-            // command.
-            if (!result.IsSuccess) {
-                if (result.Error.Equals(CommandError.BadArgCount) || result.Error.Equals(CommandError.ParseFailed)) {
-                    var cmd = message.Content.Replace(Program.prefix.ToString(), "").Split(" ")[0];
-                    await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateInfoEmbed(BasicCommands.GenerateHelpText(cmd)));
-                    return;
+            using (var typing = message.Channel.EnterTypingState()) {
+                // Keep in mind that result does not indicate a return value
+                // rather an object stating if the command executed successfully.
+                var result = await _commands.ExecuteAsync(
+                    context: context, 
+                    argPos: argPos,
+                    services: null);
+
+                // Optionally, we may inform the user if the command fails
+                // to be executed; however, this may not always be desired,
+                // as it may clog up the request queue should a user spam a
+                // command.
+                if (!result.IsSuccess) {
+                    if (result.Error.Equals(CommandError.BadArgCount) || result.Error.Equals(CommandError.ParseFailed)) {
+                        var cmd = message.Content.Replace(Program.prefix.ToString(), "").Split(" ")[0];
+                        await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateInfoEmbed(BasicCommands.GenerateHelpText(cmd)));
+                    }
+                    else {
+                        await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateErrorEmbed(result.ErrorReason),
+                            allowedMentions:new Discord.AllowedMentions(null), messageReference: new Discord.MessageReference(context.Message.Id));
+                    }
                 }
-                await context.Channel.SendMessageAsync("", false, EmbedHelper.GenerateErrorEmbed(result.ErrorReason));
             }
         }
     }

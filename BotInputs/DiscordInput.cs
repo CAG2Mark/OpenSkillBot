@@ -286,7 +286,7 @@ namespace OpenSkillBot.BotInputs
             }          
         }
 
-        public async Task EditMessage(RestUserMessage msg, string newText, Embed embed = null) {
+        public async Task EditMessage(IUserMessage msg, string newText, Embed embed = null) {
             if (testMode) return;
 
             await msg.ModifyAsync(m => {

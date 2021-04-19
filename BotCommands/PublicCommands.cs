@@ -8,7 +8,7 @@ namespace OpenSkillBot.BotCommands
 {
     [Name("Info")]
     [Summary("Public information commands that anyone can use.")]
-    public class PublicCommands : ModuleBase<SocketCommandContext> {      
+    public class PublicCommands : ModuleBaseEx<SocketCommandContext> {      
 
         [Command("playerinfo")]
         [Alias(new string[] {"pi"})]
@@ -24,11 +24,11 @@ namespace OpenSkillBot.BotCommands
             }
 
             if (player == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the user with name or ID `{name}`."));
                 return;
             }
 
-            await ReplyAsync("", false, player.GenerateEmbed());
+            await ReplyAsync(player.GenerateEmbed());
         }  
 
         [Command("calculate")]
@@ -45,7 +45,7 @@ namespace OpenSkillBot.BotCommands
                     t2 = SkillCommands.StrToTeam(team2);
                 }
                 catch (Exception e) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                    await ReplyAsync(EmbedHelper.GenerateErrorEmbed(e.Message));
                     return;
                 }
 
@@ -72,10 +72,10 @@ namespace OpenSkillBot.BotCommands
                 embed.AddField($"If **{t1_s}** and **{t2_s}** draw:", 
                     MessageGenerator.MatchDeltaGenerator(oldData, SkillCommands.ToOldPlayerData(draw)).SkillChanges);
 
-                await ReplyAsync("", false, embed.Build());
+                await ReplyAsync(embed.Build());
             }
             catch (Exception e) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed(e.Message));
             }
         }
     }

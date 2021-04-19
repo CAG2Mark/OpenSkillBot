@@ -13,7 +13,7 @@ namespace OpenSkillBot.BotCommands
     [RequirePermittedRole]
     [Name("Achievements")]
     [Summary("Create and manage achievements and grant them to players.")]
-    public class AchievementCommands : ModuleBase<SocketCommandContext>
+    public class AchievementCommands : ModuleBaseEx<SocketCommandContext>
     {
         [Command("createachievement")]
         [Alias(new string[] {"ca"})]
@@ -23,8 +23,8 @@ namespace OpenSkillBot.BotCommands
             [Summary("The description of the achievement.")] string description
         ) {
             var result = await Program.Controller.Achievements.AddAchievement(name, description);
-            if (result) await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Successfully added the achievement **{name}**."));
-            else await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not create the achievement **{name}**. Please try again."));
+            if (result) await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Successfully added the achievement **{name}**."));
+            else await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not create the achievement **{name}**. Please try again."));
         }
 
         [Command("editachievement")]
@@ -36,13 +36,13 @@ namespace OpenSkillBot.BotCommands
         ) {
             var achv = Program.Controller.Achievements.FindAchievement(achievement);
             if (achv == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the achievement from the query **{achievement}**."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the achievement from the query **{achievement}**."));
                 return;
             }
 
             await achv.Edit(name, description);
             
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Successfully edited the achievement **{name}**."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Successfully edited the achievement **{name}**."));
         }
 
 
@@ -55,7 +55,7 @@ namespace OpenSkillBot.BotCommands
         ) {
             var achv = Program.Controller.Achievements.FindAchievement(achievement);
             if (achv == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the achievement from the query **{achievement}**."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the achievement from the query **{achievement}**."));
                 return;
             }
 
@@ -68,12 +68,12 @@ namespace OpenSkillBot.BotCommands
                         output += p.IGN + Environment.NewLine;
                     }
                     else {
-                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not add the player **{p.IGN}** to the achievement **{achv.Name}**."));
+                        await ReplyAsync(EmbedHelper.GenerateWarnEmbed($"Could not add the player **{p.IGN}** to the achievement **{achv.Name}**."));
                     }
                 }
             }
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                 $"Successfully added the following players to the achievement **{achv.Name}**:" + Environment.NewLine + Environment.NewLine + output));
         }
 
@@ -86,7 +86,7 @@ namespace OpenSkillBot.BotCommands
         ) {
             var achv = Program.Controller.Achievements.FindAchievement(achievement);
             if (achv == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the achievement from the query **{achievement}**."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the achievement from the query **{achievement}**."));
                 return;
             }
 
@@ -99,12 +99,12 @@ namespace OpenSkillBot.BotCommands
                         output += p.IGN + Environment.NewLine;
                     }
                     else {
-                        await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed($"Could not revoke the player **{p.IGN}** of the achievement **{achv.Name}**."));
+                        await ReplyAsync(EmbedHelper.GenerateWarnEmbed($"Could not revoke the player **{p.IGN}** of the achievement **{achv.Name}**."));
                     }
                 }
             }
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                 $"Successfully revoked the following players of the achievement **{achv.Name}**:" + Environment.NewLine + Environment.NewLine + output));
         }
 
@@ -116,28 +116,27 @@ namespace OpenSkillBot.BotCommands
             var achv = Program.Controller.Achievements.FindAchievement(achievement);
             if (achv != null) {
                 if (await Program.Controller.Achievements.DeleteAchievement(achv)) {
-                    await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Deleted the achievement **{achv.Name}**."));
+                    await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Deleted the achievement **{achv.Name}**."));
                 } else {
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not delete the achievement **{achv.Name}**."));
+                    await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not delete the achievement **{achv.Name}**."));
                 }
             } else {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the achievement from the query **{achievement}**."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the achievement from the query **{achievement}**."));
             }
         }
 
         [Command("resendachvs")]
         [Summary("Deletes and resends all the achievements in the achievements channel.")]
         public async Task ResendAchvsCommand() {
-            var msg = await Program.DiscordIO.SendMessage(
-                "", 
-                Context.Channel, 
+            var msg = await SendProgressAsync(
                 EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Resending all achievements..."));
+                
             foreach (var a in Program.Controller.Achievements.AchievementsList) {
                 await a.DeleteMessage();
                 await a.SendMessage();
             }
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Resent {Program.Controller.Achievements.AchievementsList.Count()} achievement(s)."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Resent {Program.Controller.Achievements.AchievementsList.Count()} achievement(s)."));
         }
     }
 }

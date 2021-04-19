@@ -12,7 +12,7 @@ namespace OpenSkillBot.BotCommands
 {
     [Name("Matches")]
     [Summary("Start, calculate and manage matches.")]
-    public class SkillCommands : ModuleBase<SocketCommandContext> {
+    public class SkillCommands : ModuleBaseEx<SocketCommandContext> {
 
         [RequirePermittedRole]
         [Command("startmatch")]
@@ -23,7 +23,7 @@ namespace OpenSkillBot.BotCommands
             [Summary("The second team.")] string team2, 
             [Summary("Whether or not to force start the match even if the player is already playing.")] bool force = false
         ) {
-            await ReplyAsync("", false, (await StartMatch(team1, team2, force)).Item2);        
+            await ReplyAsync((await StartMatch(team1, team2, force)).Item2);        
         }
 
         // allow this code to also be used for !tournamentstartmatch (!tsm)
@@ -81,7 +81,7 @@ namespace OpenSkillBot.BotCommands
         public async Task FullMatchCommand([Summary("The first team.")] string team1, [Summary("The second team.")] string team2,
             [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw. Enter -1 to cancel the match.")] int result = 1
         ) {
-            await ReplyAsync("", false, (await FullMatch(team1, team2, result)).Item2);
+            await ReplyAsync((await FullMatch(team1, team2, result)).Item2);
         }
 
         [RequirePermittedRole]
@@ -108,7 +108,7 @@ namespace OpenSkillBot.BotCommands
             }
 
             if (toDecay.Count == 0) {
-                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
+                await ReplyAsync(EmbedHelper.GenerateInfoEmbed(
                     "No players to decay."));
                 return;
             }
@@ -118,7 +118,7 @@ namespace OpenSkillBot.BotCommands
 
             var output = string.Join(", ", toDecay.Select(p => p.IGN));
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(
                 "Decayed the following players: " + Environment.NewLine + Environment.NewLine + output));
         }
 
@@ -158,15 +158,15 @@ namespace OpenSkillBot.BotCommands
 
             // this code is to find the match to insert before
 
-            var msg = await Program.DiscordIO.SendMessage("", 
-                Context.Channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Finding the match **{id}**..."));
+            var msg = await SendProgressAsync(EmbedHelper.GenerateInfoEmbed(
+                $":arrows_counterclockwise: Finding the match **{id}**..."
+            ));
 
             var match = FindMatch(id);
 
             if (match == null) {
                 await msg.DeleteAsync();
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
                     ));
                 return;
             }
@@ -186,7 +186,7 @@ namespace OpenSkillBot.BotCommands
                 }
                 catch (Exception e) {
                     await msg.DeleteAsync();
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                    await ReplyAsync(EmbedHelper.GenerateErrorEmbed(e.Message));
                     return;
                 }
 
@@ -204,7 +204,7 @@ namespace OpenSkillBot.BotCommands
                         $"**{depth}** subsequent match{(depth == 1 ? " was" : "es were")} re-calculated.";
 
                 await msg.DeleteAsync();
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {newMatch.ActionId}"));
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(output, $"ID: {newMatch.ActionId}"));
             }
             catch (Exception e) {
                 await msg.DeleteAsync();
@@ -220,21 +220,20 @@ namespace OpenSkillBot.BotCommands
             [Summary("The result of a match. By default, the first team wins. Enter 0 for a draw.")] int result = 1) {
 
             if (result == -1) {
-                await ReplyAsync("", false, EmbedHelper.GenerateWarnEmbed("As -1 was given as the result, the given match will be undone."));
+                await ReplyAsync(EmbedHelper.GenerateWarnEmbed("As -1 was given as the result, the given match will be undone."));
                 await this.UndoCommand(id);
                 return;
             }
 
-            // this code is to find the match to insert before
-            var msg = await Program.DiscordIO.SendMessage("", 
-                Context.Channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Finding the match **{id}**..."));
+            var msg = await SendProgressAsync(EmbedHelper.GenerateInfoEmbed(
+                $":arrows_counterclockwise: Finding the match **{id}**..."
+            ));
 
             var matchFound = FindMatch(id);
 
             if (matchFound == null) {
                 await msg.DeleteAsync();
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find a match with the ID **{id}**."
                     ));
                 return;
             }
@@ -245,7 +244,7 @@ namespace OpenSkillBot.BotCommands
             }
             catch (InvalidCastException) {
                 await msg.DeleteAsync();
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"The action with ID **{id}** is not a match action."
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"The action with ID **{id}** is not a match action."
                     ));
                 return;
             }
@@ -271,7 +270,7 @@ namespace OpenSkillBot.BotCommands
                 }
                 catch (Exception e) {
                     await msg.DeleteAsync();
-                    await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed(e.Message));
+                    await ReplyAsync(EmbedHelper.GenerateErrorEmbed(e.Message));
                     return;
                 }
 
@@ -287,7 +286,7 @@ namespace OpenSkillBot.BotCommands
                         $"**{depth}** subsequent match{(depth == 1 ? " was" : "es were")} re-calculated.";
 
                 await msg.DeleteAsync();
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(output, $"ID: {match.ActionId}"));
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(output, $"ID: {match.ActionId}"));
             }
             catch (Exception e) {
                 await msg.DeleteAsync();
@@ -309,7 +308,7 @@ namespace OpenSkillBot.BotCommands
 
             Program.SerializeConfig();
 
-            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Successfully added rank **{rankName}**"));
+            return ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Successfully added rank **{rankName}**"));
         }
 
         [RequirePermittedRole]
@@ -323,7 +322,7 @@ namespace OpenSkillBot.BotCommands
 
             Program.SerializeConfig();
 
-            return ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Removed the rank **{rankName}**"));
+            return ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Removed the rank **{rankName}**"));
         }
 
         [RequirePermittedRole]
@@ -335,20 +334,17 @@ namespace OpenSkillBot.BotCommands
                 sb.Append($"**{r.Name}** - {r.LowerBound}+{Environment.NewLine}");
             }
 
-            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(sb.ToString()));
+            await ReplyAsync(EmbedHelper.GenerateInfoEmbed(sb.ToString()));
         }
 
         [RequirePermittedRole]        
         [Command("refreshrank", RunMode = RunMode.Async)]
-        [Summary("Refreshes the rank of all players, or a specific list of players.")]
+        [Summary("Refreshes the rank of all players or a specific list of players.")]
         public async Task RefreshRankCommand([Summary(
             "A comma separated list of the players to update. Type \"all\" to refresh all players.")][Remainder] 
             string players = "all") {
 
             var channel = Context.Channel;
-
-            var msg = await Program.DiscordIO.SendMessage("", channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Initialising..."));
 
             List<Player> playersList;
 
@@ -363,7 +359,7 @@ namespace OpenSkillBot.BotCommands
                 foreach (var p in playersSpl) {
                     var player = PlayerManagementCommands.FindPlayer(p);
                     if (player == null) {
-                        await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find the player **{p}**."));
+                        await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find the player **{p}**."));
                         return;
                     }
                     playersList.Add(player);
@@ -372,22 +368,35 @@ namespace OpenSkillBot.BotCommands
 
             var total = playersList.Count;
 
-            int i = 0;
+            var msg = await SendProgressAsync(EmbedHelper.GenerateInfoEmbed(
+                $":arrows_counterclockwise: Refershing the ranks of {total} players. This will take {total} seconds in ideal circumstances."));
+
             foreach (var p in playersList) {
+
+                // No longer edits the message because this adds to the API requests, thereby triggering the rate limit sooner than needed
+
+                /*
+
                 var percent = ++i * 100 / total;
-                await Program.DiscordIO.EditMessage(msg, "", 
+                var editTask = Program.DiscordIO.EditMessage(msg, "", 
                     EmbedHelper.GenerateInfoEmbed(
-                        $":arrows_counterclockwise: Processing {p.IGN} {Environment.NewLine}{Environment.NewLine} {i} of {total} players processed ({percent}%)"));
+                        $":arrows_counterclockwise: Processing {p.IGN} {Environment.NewLine}{Environment.NewLine} {i} of {total} players processed " + 
+                        $"({percent}%) {Environment.NewLine} (Approx. {total - i}s remaining)"));
+
+                */
+
                 p.QueueRankRefresh(true);
-                // don't spam the api
-                await Task.Delay(100);
+                // discord api rate limit is 5 requests per 5 seconds
+                var delay = Task.Delay(1000);
+
+                await delay;
             }
 
             await msg.DeleteAsync();
 
             Program.CurLeaderboard.InvokeChange();
             
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"Refreshed the ranks of {playersList.Count} players."));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"Refreshed the ranks of {playersList.Count} players."));
         }
 
 
@@ -396,16 +405,19 @@ namespace OpenSkillBot.BotCommands
         [Summary("Resets the leaderboard. Requires a token for safety. If no token is provided, one is generated and you must re-type the command with the token.")]
         public async Task ResetLeaderboardCommand([Summary("The provided reset token.")]string token = null) {
             if (string.IsNullOrEmpty(token)) {
-                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed($"Please type **{Program.prefix}resetleaderboard** `{Program.Controller.GenerateResetToken()}` to confirm this action."));
+                await ReplyAsync(EmbedHelper.GenerateInfoEmbed($"Please type **{Program.prefix}resetleaderboard** `{Program.Controller.GenerateResetToken()}` to confirm this action."));
             }
             else if (Program.Controller.CheckResetToken(token)) {
-                var msg = await Program.DiscordIO.SendMessage("", Context.Channel, EmbedHelper.GenerateInfoEmbed("Resetting the leaderboard... (this might take a while to avoid spamming the API)"));
+                var msg = await ReplyAsync(EmbedHelper.GenerateInfoEmbed(
+                    $"Resetting the leaderboard... (will take approx {Program.CurLeaderboard.Players.Count}s in ideal circumstances)"
+                ));
                 await Program.CurLeaderboard.Reset();
-                await msg.DeleteAsync();
-                await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed($"The leaderboard has been reset."));
+                var deleteTask = msg.DeleteAsync();
+                await ReplyAsync(EmbedHelper.GenerateSuccessEmbed($"The leaderboard has been reset."));
+                await deleteTask;
             }
             else {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Invalid token."));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed("Invalid token."));
             }
         }
 
@@ -414,13 +426,11 @@ namespace OpenSkillBot.BotCommands
         [Summary("Undos a given number of matches.")]
         public async Task UndoCommand([Summary("The number of matches to undo (default is 1).")] int count = 1) {
             if (count == 0) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed("Couldn't undo any matches/actions because you didn't tell me to undo any, nerd. :sunglasses:"));
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed("Couldn't undo any matches/actions because you didn't tell me to undo any, nerd. :sunglasses:"));
                 return;
             }
 
-            var msg = await Program.DiscordIO.SendMessage("", 
-                Context.Channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Initialising..."));
+            var msg = await SendProgressAsync(EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Initialising..."));
 
             StringBuilder sb = new StringBuilder();
             sb.Append($"**The following {(count == 1 ? "match/action was" : "matches/actions were")} undone:**{Environment.NewLine}{Environment.NewLine}");
@@ -441,7 +451,7 @@ namespace OpenSkillBot.BotCommands
 
             await Task.WhenAll(
                 msg.DeleteAsync(),
-                ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()))
+                ReplyAsync(EmbedHelper.GenerateSuccessEmbed(sb.ToString()))
             );
             
             // reset the pointer if the currently focused match has been affected
@@ -462,14 +472,14 @@ namespace OpenSkillBot.BotCommands
             var match = FindMatch(id);
 
             if (match == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateErrorEmbed($"Could not find a match or action with the ID **{id}**."
+                await ReplyAsync(EmbedHelper.GenerateErrorEmbed($"Could not find a match or action with the ID **{id}**."
                     ));
                 return;
             }
 
-            var msg = await Program.DiscordIO.SendMessage("", 
-                Context.Channel, 
-                EmbedHelper.GenerateInfoEmbed($":arrows_counterclockwise: Undoing action and re-calculating subsequent matches/actions... (this might take a while)"));
+            var msg = await SendProgressAsync(EmbedHelper.GenerateInfoEmbed(
+                $":arrows_counterclockwise: Undoing action and re-calculating subsequent matches/actions... (this might take a while)"
+            ));
 
             int depth = await match.Undo();
 
@@ -482,7 +492,7 @@ namespace OpenSkillBot.BotCommands
             
             await msg.DeleteAsync();
 
-            await ReplyAsync("", false, EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
+            await ReplyAsync(EmbedHelper.GenerateSuccessEmbed(sb.ToString()));
 
             // reset the pointer if the currently focused match has been affected
             if (id.Equals(ptrIndicator)) await PtrResetCommand();
@@ -503,11 +513,11 @@ namespace OpenSkillBot.BotCommands
                 p_depth = 1;
             }
             if (p_match == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no actions/matches."));
+                await ReplyAsync(EmbedHelper.GenerateInfoEmbed("There are no actions/matches."));
                 return;
             }
 
-            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
+            await ReplyAsync(EmbedHelper.GenerateInfoEmbed(
                 "**The pointer is currently on the match/action:**" + Environment.NewLine + Environment.NewLine +
                 $"**{p_match.ToString()}**", "ID: " + p_match.ActionId));
         }
@@ -521,7 +531,7 @@ namespace OpenSkillBot.BotCommands
         public async Task PtrResetCommand() {
             p_match = Program.Controller.LatestAction;
             p_depth = 1;
-            await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed(
+            await ReplyAsync(EmbedHelper.GenerateInfoEmbed(
                 "**The pointer has been reset to the latest match/action.**"));
         }
 
@@ -540,7 +550,7 @@ namespace OpenSkillBot.BotCommands
         ) {
             if (p_match == null) p_match = Program.Controller.LatestAction;
             if (p_match == null) {
-                await ReplyAsync("", false, EmbedHelper.GenerateInfoEmbed("There are no actions/matches."));
+                await ReplyAsync(EmbedHelper.GenerateInfoEmbed("There are no actions/matches."));
                 return;
             }
             

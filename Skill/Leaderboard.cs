@@ -186,7 +186,7 @@ namespace OpenSkillBot.Skill
                 Players.Add(player);
                 players_byTs.Add(player);
 
-                await Task.Delay(200);
+                await Task.Delay(1000);
             }
             this.InvokeChange();
         }
