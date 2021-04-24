@@ -8,7 +8,7 @@ This bot is in a state that is usable, but things such as data formats may be ch
 More stable, production-ready versions will be available soon.
 
 Currently working features:
-* Match calculations, including teams
+* Match calculations, for N vs M matches. N1 vs N2 vs N3 vs ... will be implemened later.
 * Starting of matches and auto deafening/undeafening of users
 * Saving of state between instances
 * Leaderboard channel send
