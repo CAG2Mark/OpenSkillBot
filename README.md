@@ -1,6 +1,7 @@
 # OpenSkillBot
 ![OpenSkillBot Logo](https://raw.githubusercontent.com/CAG2Mark/OpenSkillBot/master/osb.png)
-An open source bot for Discord Servers to calculate and store the TrueSkill of players with Challonge integration.
+An open source bot for Discord Servers to calculate and store the skill of players with Challonge integration. The skill system used can be found here:
+https://github.com/moserware/Skills
 
 # Status of Features
 This bot is in a state that is usable, but things such as data formats may be changed without notice and break existing installations. This is because the bot is still in an early and volatile stage of development. Therefore, use this bot and update it at your own risk.
@@ -60,6 +61,5 @@ You can use !help to see what commands are available.
  
 # Disclaimer
 
-* This project is not affiliated with Microsoft's Trueskill project in any way, apart from the use of its model.
 * This project is not affiliated with Discord (the social platform), Discord.NET, or any other libraries used.
 * This project is not affiliated with Challonge.
