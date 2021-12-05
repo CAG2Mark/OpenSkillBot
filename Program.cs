@@ -40,6 +40,8 @@ namespace OpenSkillBot
 
         public static bool TestMode = false;
 
+
+
         /*
 
         "Test mode" starts the bot in a blank and default state for unit testing.

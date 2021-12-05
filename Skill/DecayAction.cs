@@ -144,7 +144,7 @@ namespace OpenSkillBot.Skill
         }
 
         public static IEnumerable<Player> GetPlayersToDecay() {
-            foreach (var player in Program.CurLeaderboard.Players) {
+            foreach (var player in Program.CurLeaderboard.GetPlayerCollection()) {
                 if (player.DecayCycle != 0 &&
                     (player.LastDecay - player.DecayCycle) / Program.Config.DecayCyclesUntilDecay != 0 &&
                     player.DecayCycle % Program.Config.DecayCyclesUntilDecay == 0 &&

@@ -26,9 +26,9 @@ namespace OpenSkillBot.Skill
         public Player(string uUId, string iGN, string alias, Rank playerRank) 
         {
             this.UUId = uUId;
-                this.IGN = iGN;
-                this.Alias = alias;
-                this.PlayerRank = playerRank;
+            this.IGN = iGN;
+            this.Alias = alias;
+            this.PlayerRank = playerRank;
                
         }
 

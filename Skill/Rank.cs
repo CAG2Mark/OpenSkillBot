@@ -57,6 +57,8 @@ namespace OpenSkillBot.Skill
 
         public int CompareTo(object obj)
         {
+            if (obj == null) return -1;
+            
             var rank = (Rank)obj;
             if (this.IsUnrankedRank) return -1;
             return LowerBound.CompareTo(rank.LowerBound);

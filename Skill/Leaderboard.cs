@@ -4,16 +4,22 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace OpenSkillBot.Skill
 {
     public class Leaderboard
     {
 
+
+        [JsonProperty("Players")]
+        // for backwards compability, not used!
+        private List<Player> playersObselete { get; set; } = null;
+
         /// <summary>
         /// All the players on the leaderboard.
         /// </summary>
-        public List<Player> Players { get; set; } = new List<Player>();
+        public Dictionary<string, Player> PlayersDic { get; set; } = new Dictionary<string, Player>();
 
         // sorted by TS instead of ID, only use for output - don't binary search
         private List<Player> players_byTs = new List<Player>();
@@ -24,23 +30,17 @@ namespace OpenSkillBot.Skill
 
         }
 
+        public ICollection<Player> GetPlayerCollection() {
+            return PlayersDic.Values;
+        }
+
         public void AddPlayer(Player p) {
 
+            if (PlayersDic.ContainsKey(p.UUId)) PlayersDic[p.UUId] = p;
+            else PlayersDic.Add(p.UUId, p);
 
+            // O(n) insertion into the player TS list
             bool added = false;
-            // O(n) insertion rather than n log n
-            for (int i = 0; i < Players.Count; ++i) {
-                if (p.UUId.CompareTo(Players[i].UUId) >= 0) {
-                    Players.Insert(i, p);
-                    added = true;
-                    break;
-                }
-            }
-            if (!added) {
-                Players.Add(p);
-            }
-
-            added = false;
             for (int i = 0; i < players_byTs.Count; ++i) {
                 if (p.DisplayedSkill >= players_byTs[i].DisplayedSkill) {
                     players_byTs.Insert(i, p);
@@ -59,52 +59,34 @@ namespace OpenSkillBot.Skill
         }
 
         public void RemovePlayer(Player p) {
-            Players.Remove(p);
+            PlayersDic.Remove(p.UUId);
             players_byTs.Remove(p);
 
             InvokeChange();
         }
 
         public void Initialize() {
-            players_byTs = Players.Select(x => x).ToList();
-            Players.Sort((x, y) => x.UUId.CompareTo(y.UUId));
+            // backwards compatibility for older versions still using binary search
+            if (playersObselete != null) {
+                foreach (var p in playersObselete) {
+                    PlayersDic.TryAdd(p.UUId, p);
+                }
+            }
+
+            players_byTs = GetPlayerCollection().Select(x => x).ToList();
             players_byTs.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
         }
 
         private void sortBoard() {
-            Players.Sort((x, y) => x.UUId.CompareTo(x.UUId));
             players_byTs.Sort((x, y) => y.DisplayedSkill.CompareTo(x.DisplayedSkill));
         }
 
         public Player FindPlayer(ulong discordId) {
-            return Players.FirstOrDefault(p => p.DiscordId == discordId);
+            return GetPlayerCollection().FirstOrDefault(p => p.DiscordId == discordId);
         }
         
-        public Player FindPlayer(string uuid, bool retry = true) {
-
-            // Binary search
-            int min = 0;
-            int max = Players.Count - 1; 
-            while (min <= max) {  
-                int mid = (min + max) / 2;  
-                if (uuid.Equals(Players[mid].UUId)) {  
-                    return Players[mid];
-                }  
-                else if (uuid.CompareTo(Players[mid].UUId) < 0) {  
-                    max = mid - 1;  
-                }  
-                else {  
-                    min = mid + 1;  
-                }  
-            }
-
-            if (retry) {
-                // sort both
-                sortBoard();
-                return FindPlayer(uuid, false);
-            }
-
-            return null;
+        public Player FindPlayer(string uuid) {
+            return PlayersDic.ContainsKey(uuid) ? PlayersDic[uuid] : null;
         }
 
 
@@ -112,26 +94,14 @@ namespace OpenSkillBot.Skill
         public void InvokeChange(int changeCount = -1) {
 
             // code optimisations, choose the fastest out of quicksort or bubblesort
-            var quickSortOps = BitOperations.Log2(Convert.ToUInt32(Players.Count + 1)) * Players.Count;
-            var bubbleOps = changeCount * Players.Count;
+            var quickSortOps = BitOperations.Log2(Convert.ToUInt32(PlayersDic.Count + 1)) * PlayersDic.Count;
+            var bubbleOps = changeCount * PlayersDic.Count;
 
             if (changeCount <= 0 || quickSortOps <= bubbleOps) {
                 sortBoard();
             }
             else {
-                // Bubble sort n times.
-                changeCount = Math.Min(changeCount, Players.Count);
-
-                for (int j = 0; j < changeCount; j++) {
-                    for (int i = 0; i < Players.Count - 1; i++) {
-                        if (Players[i].UUId.CompareTo(Players[i + 1].UUId) >= 0) {
-                            var temp = Players[i + 1];
-                            Players[i + 1] = Players[i];
-                            Players[i] = temp;
-                        }
-                    }
-                }
-
+                // bubble sort n times 
                 // todo: make this a more general purpose function..
                 for (int j = 0; j < changeCount; j++) {
                     for (int i = players_byTs.Count - j - 1; i > 0; --i) {
@@ -167,9 +137,9 @@ namespace OpenSkillBot.Skill
         }
 
         public async Task Reset() {
-            var players = Players;
+            var players = GetPlayerCollection();
 
-            Players = new List<Player>();
+            PlayersDic = new Dictionary<string, Player>();
             players_byTs = new List<Player>();
 
             foreach (var player in players) {
@@ -183,7 +153,7 @@ namespace OpenSkillBot.Skill
                 player.Tournaments = new PriorityQueue<Serialization.TourneyContainer>(true);
                 player.Actions = new PriorityQueue<Serialization.ActionContainer>(true);
 
-                Players.Add(player);
+                PlayersDic.TryAdd(player.UUId, player);
                 players_byTs.Add(player);
 
                 await Task.Delay(1000);
@@ -199,14 +169,16 @@ namespace OpenSkillBot.Skill
         public Player FuzzySearch(string query) {
             if (string.IsNullOrWhiteSpace(query) || query.Length < 3) return null;
 
+            var players = GetPlayerCollection().ToList();
+
             var nQuery = query.ToLower();
             // first search based on ign, discord ID or UUID
-            var player = Players.Find(p => {
+            var player = players.Find(p => {
                 string name = p.IGN.Substring(0, Math.Min(query.Length, p.IGN.Length)).ToLower();
                 return (nQuery.Equals(name) || query.Equals(p.DiscordId.ToString()) || query.Equals(p.UUId.ToString())) && !p.MarkedForDeletion;
             });
             if (player != null) return player;
-            else return Players.Find(p => {
+            else return players.Find(p => {
                 string alias = null;
                 if (!string.IsNullOrWhiteSpace(p.Alias))
                     alias = p.Alias.Substring(0, Math.Min(query.Length, p.Alias.Length)).ToLower(); 

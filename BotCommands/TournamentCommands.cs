@@ -179,7 +179,7 @@ namespace OpenSkillBot.BotCommands
                     return;
                 }
 
-                var player = Program.CurLeaderboard.Players.FirstOrDefault(p => p.DiscordId == Context.Message.Author.Id);
+                var player = Program.CurLeaderboard.GetPlayerCollection().FirstOrDefault(p => p.DiscordId == Context.Message.Author.Id);
                 if (player == null) {
                     await ReplyAsync(EmbedHelper.GenerateErrorEmbed("You are not linked to the leaderboard. Please contact an administrator if you believe this is a mistake."));
                     return;

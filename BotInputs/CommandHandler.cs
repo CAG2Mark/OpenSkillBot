@@ -82,6 +82,8 @@ namespace OpenSkillBot.BotInputs
                             allowedMentions:new Discord.AllowedMentions(null), messageReference: new Discord.MessageReference(context.Message.Id));
                     }
                 }
+
+                typing.Dispose();
             }
         }
     }

@@ -91,12 +91,12 @@ namespace OpenSkillBot.BotCommands
             [Remainder][Summary("The players to decay. Leave empty to automatically determine them, or type \"all\" to decay all players.")] string players = null
         ) {
 
-            List<Player> toDecay = new List<Player>();
+            ICollection<Player> toDecay = new List<Player>();
 
             if (string.IsNullOrEmpty(players)) {
                 toDecay = DecayAction.GetPlayersToDecay().ToList();
             } else if (players.ToLower().Trim().Equals("all")) {
-                toDecay = Program.CurLeaderboard.Players;
+                toDecay = Program.CurLeaderboard.PlayersDic.Values;
             } else {
                 var teams = TournamentCommands.StrListToTeams(players);
 
@@ -346,10 +346,10 @@ namespace OpenSkillBot.BotCommands
 
             var channel = Context.Channel;
 
-            List<Player> playersList;
+            ICollection<Player> playersList;
 
             if (players.Equals("all")) {
-                playersList = Program.CurLeaderboard.Players;
+                playersList = Program.CurLeaderboard.PlayersDic.Values;
             }
             else {
                 playersList = new List<Player>();
@@ -409,7 +409,7 @@ namespace OpenSkillBot.BotCommands
             }
             else if (Program.Controller.CheckResetToken(token)) {
                 var msg = await ReplyAsync(EmbedHelper.GenerateInfoEmbed(
-                    $"Resetting the leaderboard... (will take approx {Program.CurLeaderboard.Players.Count}s in ideal circumstances)"
+                    $"Resetting the leaderboard... (will take approx {Program.CurLeaderboard.PlayersDic.Count}s in ideal circumstances)"
                 ));
                 await Program.CurLeaderboard.Reset();
                 var deleteTask = msg.DeleteAsync();

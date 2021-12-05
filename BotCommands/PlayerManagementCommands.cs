@@ -149,8 +149,10 @@ namespace OpenSkillBot.BotCommands
             }
 
             double d_newSigma;
-            if (!newTs.Equals("~") && Double.TryParse(newRd, out d_newSigma)) {
+            if (!newRd.Equals("~") && Double.TryParse(newRd, out d_newSigma)) {
+                double diff = d_newSigma - player.Sigma;
                 player.Sigma = d_newSigma;
+                player.Mu += diff * Program.Config.TrueSkillDeviations;
             }
 
             double d_newTs;
