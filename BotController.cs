@@ -37,9 +37,8 @@ namespace OpenSkillBot
         {
             this.IsTourney = isTourney;
                 this.messageId = messageId;
-               
         }
-                public bool IsTourney { get; set; }
+        public bool IsTourney { get; set; }
 
         [JsonProperty]
         private IEnumerable<string> team1ids { get; set; }
@@ -91,8 +90,30 @@ namespace OpenSkillBot
         }
     }
 
-    // lazy serialization technique so i dont have to write code to re-populate all the matches. instead the hash and the linked list
-    // are stored together so json.net is able to serialize each by reference :)))
+    public class ActionsStruct
+    {
+        private BotAction latestAction;
+
+        [JsonIgnore]
+        public BotAction LatestAction { 
+            get {
+                if (LatestActionId == null) return null;
+                if (latestAction == null) latestAction = MatchHash[LatestActionId];
+                return latestAction;
+            }
+            set {
+                LatestActionId = value != null ? value.ActionId : null;
+                latestAction = value;
+            }
+        }
+
+        public string LatestActionId { get; set; }
+        // for O(1) lookup of matches :)
+        public Dictionary<string, BotAction> MatchHash { get; set; } = new Dictionary<string, BotAction>();
+    }
+
+
+    // support for old type, dont break old version deserialization
     public class MatchesStruct {
         public BotAction LatestAction { get; set; }
         // for O(1) lookup of matches :)
@@ -164,16 +185,15 @@ namespace OpenSkillBot
             return token.Equals(this.resetToken);
         }
 
-        public MatchesStruct Matches = new MatchesStruct();
-        public BotAction LatestAction { get => Matches.LatestAction; set => Matches.LatestAction = value; }
+        public ActionsStruct Actions = new ActionsStruct();
+        public BotAction LatestAction { get => Actions.LatestAction; set => Actions.LatestAction = value; }
         // for O(1) lookup of matches :)
-        public Dictionary<string, BotAction> MatchHash { get => Matches.MatchHash; set => Matches.MatchHash = value; }
+        public Dictionary<string, BotAction> MatchHash { get => Actions.MatchHash; set => Actions.MatchHash = value; }
 
         bool testMode;
 
         public BotController(bool initialize = true, bool testMode = false) {
             this.testMode = testMode;
-
             if (initialize) Initialize();
         }
 
@@ -194,15 +214,22 @@ namespace OpenSkillBot
             // get action history
             if (File.Exists(ahFileName)) {
                 try {
-                    Matches = SerializeHelper.Deserialize<MatchesStruct>(ahFileName);
-                }
-                catch (JsonException) {
-                    Console.WriteLine("Could not deserialise action history. Trying to deserialise in old format.");
-                    // backwards compatibility for old version
-                    var oldVer = SerializeHelper.Deserialize<MatchesStructOld>(ahFileName);
-                    Matches.LatestAction = oldVer.LatestAction;
-                    foreach (var k in oldVer.MatchHash.Keys) {
-                        Matches.MatchHash.Add(k, oldVer.MatchHash[k]);
+                    Actions = SerializeHelper.Deserialize<ActionsStruct>(ahFileName);
+                } catch (JsonException) {
+                    try {
+                        Console.WriteLine("Could not deserialise to ActionsStruct. Trying to deserialise in old format.");
+                        var oldMatches = SerializeHelper.Deserialize<MatchesStruct>(ahFileName);
+                        if (Actions == null) Actions = new ActionsStruct();
+                        Actions.LatestAction = oldMatches.LatestAction;
+                        Actions.MatchHash = oldMatches.MatchHash;
+                    } catch (JsonException) {
+                        Console.WriteLine("Could not deserialise to MatchesStruct. Trying to deserialise in old format.");
+                        // backwards compatibility for old version
+                        var oldVer = SerializeHelper.Deserialize<MatchesStructOld>(ahFileName);
+                        Actions.LatestAction = oldVer.LatestAction;
+                        foreach (var k in oldVer.MatchHash.Keys) {
+                            Actions.MatchHash.Add(k, oldVer.MatchHash[k]);
+                        }
                     }
                 }
 
@@ -283,7 +310,7 @@ namespace OpenSkillBot
             if (testMode) return true;
 
             try {
-                SerializeHelper.Serialize(Matches, ahFileName);
+                SerializeHelper.Serialize(Actions, ahFileName);
                 return true;
             }
             catch (System.Exception) {

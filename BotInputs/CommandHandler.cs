@@ -83,7 +83,13 @@ namespace OpenSkillBot.BotInputs
                     }
                 }
 
-                typing.Dispose();
+                try {
+                    typing.Dispose();
+                } catch (TaskCanceledException ex) {
+                    if (ex.CancellationToken.IsCancellationRequested) throw ex;
+                }
+
+                
             }
         }
     }

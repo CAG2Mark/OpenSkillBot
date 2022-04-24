@@ -9,7 +9,8 @@ namespace OpenSkillBot.Serialization
         static JsonSerializerSettings jsSettings = new JsonSerializerSettings() { 
             ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
             PreserveReferencesHandling = PreserveReferencesHandling.All,
-            TypeNameHandling = TypeNameHandling.All
+            TypeNameHandling = TypeNameHandling.All,
+            MaxDepth = int.MaxValue
             };
 
         static JsonSerializerSettings jsSettingsIndented = new JsonSerializerSettings() { 

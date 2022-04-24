@@ -37,3 +37,6 @@ token.txt
 # Serialized files
 *.json
 *.dat
+
+# Debug
+.netcoredbg*

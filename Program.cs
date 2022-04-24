@@ -79,7 +79,8 @@ namespace OpenSkillBot
 
             var initTime = DateTime.UtcNow;
 
-            Controller = new BotController(true, TestMode);
+            Controller = new BotController(false, TestMode);
+            Controller.Initialize();
             // Controller.Initialize();
 
             var doneTime = DateTime.UtcNow;

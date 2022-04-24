@@ -13,11 +13,12 @@ namespace OpenSkillBot.Skill
     public abstract class BotAction : IComparable
     {
 
-        public BotAction() {
+        public BotAction()
+        {
             ActionTime = DateTime.UtcNow;
             this.ActionId = Player.RandomString(20);
         }
-        
+
         protected abstract Task action();
 
         protected abstract void undoAction();
@@ -32,12 +33,46 @@ namespace OpenSkillBot.Skill
 
         public DateTime ActionTime;
 
+        // Serialize these
+        public string NextActionId { get; set; }
+        public string PrevActionId { get; set; }
+
+        private BotAction nextAction;
+        private BotAction prevAction;
+
         public bool IsCancelled { get; set; }
 
-        // Dont serialise this to avoid infinite recursion. Instead, repopulate on deserialization.
+        // Dont serialize these to avoid recursion. Repopulate on demand.
         [JsonIgnore]
-        public BotAction NextAction { get; set; }
-        public BotAction PrevAction { get; set; }
+        public BotAction NextAction { 
+            get {
+                if (NextActionId == null) return null;
+
+                if (nextAction == null) {
+                    nextAction = Program.Controller.FindAction(NextActionId);
+                }
+                return nextAction;
+            }
+            set { 
+                nextAction = value;
+                NextActionId = value != null ? value.ActionId : null;;
+            }
+        }
+        [JsonIgnore]
+        public BotAction PrevAction { 
+            get {
+                if (PrevActionId == null) return null;
+
+                if (prevAction == null) {
+                    prevAction = Program.Controller.FindAction(PrevActionId);
+                }
+                return prevAction;
+            }
+            set {
+                prevAction = value;
+                PrevActionId = value != null ? value.ActionId : null;;;
+            }
+        }
 
         [JsonProperty]
         public string ActionId { get; protected set; }
@@ -52,7 +87,8 @@ namespace OpenSkillBot.Skill
 
         public virtual async Task DoAction(bool invokeChange = true)
         {
-            if (this.IsCancelled) {
+            if (this.IsCancelled)
+            {
                 Program.Controller.RemoveActionFromHash(this);
                 return;
             }
@@ -64,7 +100,8 @@ namespace OpenSkillBot.Skill
 
             await sendMessage();
 
-            if (invokeChange) {
+            if (invokeChange)
+            {
                 Program.CurLeaderboard.InvokeChange(getChangeCount());
             }
 
@@ -120,7 +157,8 @@ namespace OpenSkillBot.Skill
             return depth;
         }
 
-        public async Task<int> ReCalculateSelf() {
+        public async Task<int> ReCalculateSelf()
+        {
             int count = this.getChangeCount();
 
             if (this.NextAction != null)
@@ -245,8 +283,7 @@ namespace OpenSkillBot.Skill
 
         public void RepopulateLinks()
         {
-            if (this.PrevAction != null)
-            {
+            if (this.PrevAction != null) {
                 PrevAction.NextAction = this;
                 PrevAction.RepopulateLinks();
             }

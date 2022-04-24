@@ -20,7 +20,8 @@ namespace OpenSkillBot.Serialization
         public BotAction Action {
             get {
                 if (action == null && actionId != null) {
-                    if (Program.Controller.MatchHash.ContainsKey(actionId)) this.action = Program.Controller.MatchHash[actionId];
+                    var test = Program.Controller.MatchHash;
+                    if (Program.Controller.MatchHash.ContainsKey(actionId)) action = Program.Controller.MatchHash[actionId];
                 }
                 return action;
             }
